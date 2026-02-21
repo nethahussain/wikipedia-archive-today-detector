@@ -10,7 +10,7 @@ A browser-based tool to detect [archive.today](https://archive.today) references
 
 ## Why?
 
-Archive.today links in Wikipedia are [discouraged](https://en.wikipedia.org/wiki/Wikipedia:ATODAY). This tool helps editors systematically find and replace these links with Wayback Machine alternatives.
+In February 2026, English Wikipedia [blacklisted archive.today](https://en.wikipedia.org/wiki/Wikipedia:ATODAY) after the site was found to be weaponising its CAPTCHA page to direct visitors' browsers into a DDoS attack against a security blogger, and after editors discovered that the site's operators had tampered with the content of archived web snapshots. Over 695,000 links across roughly 400,000 Wikipedia articles now need to be replaced with alternatives such as the Wayback Machine — this tool helps editors do that systematically.
 
 ## Features
 
