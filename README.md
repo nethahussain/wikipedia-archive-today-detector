@@ -4,7 +4,7 @@ A browser-based tool to detect [archive.today](https://archive.today) references
 
 ## Why?
 
-Archive.today links in Wikipedia are [discouraged](https://en.wikipedia.org/wiki/Wikipedia:ATODAY) because the service blocks the Wayback Machine and other web archiving tools, creating single points of failure for Wikipedia's references. This tool helps editors systematically find and replace these links with Wayback Machine alternatives.
+Archive.today links in Wikipedia are [discouraged](https://en.wikipedia.org/wiki/Wikipedia:ATODAY). This tool helps editors systematically find and replace these links with Wayback Machine alternatives.
 
 ## Features
 
