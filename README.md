@@ -1,5 +1,11 @@
 # Archive.today Link Detector — Wikipedia Reference Audit Tool
 
+## 🔗 [**▶ Use the tool live →**](https://nethahussain.github.io/wikipedia-archive-today-detector/)
+
+> No login. No install. No API key. Works in any browser, instantly.
+
+---
+
 A browser-based tool to detect [archive.today](https://archive.today) references in English Wikipedia articles, find [Wayback Machine](https://web.archive.org) replacements, and fix them directly with one-click editing.
 
 ## Why?
@@ -38,7 +44,7 @@ Archive.today links in Wikipedia are [discouraged](https://en.wikipedia.org/wiki
 
 ## Usage
 
-1. Open `index.html` in any modern browser — no server or build step required
+1. Open the [**live tool**](https://nethahussain.github.io/wikipedia-archive-today-detector/) in any modern browser — no server or build step required
 2. Choose a scan mode (Article / Category / Topic Browse)
 3. Enter a search term or select a topic
 4. Review results and click **Fix on Wikipedia** for affected articles
@@ -73,7 +79,9 @@ Wayback Machine links may occasionally show "503 Service Unavailable". This is a
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[![CC0](https://licensebuttons.net/p/zero/1.0/88x31.png)](https://creativecommons.org/publicdomain/zero/1.0/)
+
+To the extent possible under law, the author has waived all copyright and related or neighboring rights to this work. This work is published from Sweden. See [LICENSE](LICENSE) for details.
 
 ## Author
 
