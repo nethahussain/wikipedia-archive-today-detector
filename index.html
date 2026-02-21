@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archive.today Link Detector — Wikipedia Reference Audit</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{background:#FAF9F5;color:#141413;font-family:'Inter',-apple-system,sans-serif}
+@keyframes _sp{to{transform:rotate(360deg)}}
+@keyframes _fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes _copyFlash{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+::selection{background:rgba(217,119,87,0.2)}
+*::-webkit-scrollbar{width:6px}*::-webkit-scrollbar-track{background:transparent}*::-webkit-scrollbar-thumb{background:#D5D4CE;border-radius:3px}
+input:focus,textarea:focus{outline:none;border-color:#D97757!important;box-shadow:0 0 0 3px rgba(217,119,87,0.12)!important}
+button{transition:all 0.15s ease}a{transition:color 0.15s ease}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useCallback,useRef,useEffect}=React;
+
+const AT_DOMAINS=["archive.today","archive.ph","archive.is","archive.fo","archive.li","archive.vn","archive.md"];
+const AT_RE=new RegExp(`https?:\\/\\/(?:${AT_DOMAINS.map(d=>d.replace(/\./g,"\\.")).join("|")})\\/[^\\s\\]|}<>"]*`,"gi");
+const TOPICS=[
+{id:"medicine",label:"Medicine",icon:"🩺",cats:["Category:Medicine","Category:Diseases and disorders","Category:Medical treatments","Category:Drugs","Category:Epidemiology","Category:Pathology","Category:Medical specialties","Category:Public health","Category:Radiology","Category:Surgery","Category:Pharmacology","Category:Vaccines"]},
+{id:"biology",label:"Biology",icon:"🧬",cats:["Category:Biology","Category:Genetics","Category:Molecular biology","Category:Microbiology","Category:Ecology","Category:Botany","Category:Zoology"]},
+{id:"physics",label:"Physics",icon:"⚛️",cats:["Category:Physics","Category:Quantum mechanics","Category:Astrophysics","Category:Particle physics","Category:Nuclear physics"]},
+{id:"chemistry",label:"Chemistry",icon:"🧪",cats:["Category:Chemistry","Category:Chemical elements","Category:Organic chemistry","Category:Biochemistry","Category:Chemical compounds"]},
+{id:"cs",label:"Computer Science",icon:"💻",cats:["Category:Computer science","Category:Artificial intelligence","Category:Machine learning","Category:Programming languages","Category:Cryptography","Category:Software","Category:Algorithms"]},
+{id:"history",label:"History",icon:"📜",cats:["Category:History","Category:Ancient history","Category:Medieval history","Category:Modern history","Category:World War II","Category:World War I","Category:History of science","Category:Historiography"]},
+{id:"politics",label:"Politics",icon:"🏛️",cats:["Category:Politics","Category:Elections","Category:Political parties","Category:Heads of state","Category:International relations","Category:Diplomacy"]},
+{id:"geography",label:"Geography",icon:"🌍",cats:["Category:Geography","Category:Countries","Category:Cities","Category:Islands","Category:Rivers","Category:Mountains"]},
+{id:"law",label:"Law",icon:"⚖️",cats:["Category:Law","Category:Criminal law","Category:International law","Category:Human rights","Category:Supreme Court of the United States"]},
+{id:"economics",label:"Economics",icon:"📊",cats:["Category:Economics","Category:Macroeconomics","Category:Microeconomics","Category:Finance","Category:Monetary policy","Category:International trade"]},
+{id:"engineering",label:"Engineering",icon:"🔧",cats:["Category:Engineering","Category:Electrical engineering","Category:Civil engineering","Category:Mechanical engineering","Category:Aerospace engineering"]},
+{id:"media",label:"Media & Journalism",icon:"📰",cats:["Category:Mass media","Category:Journalism","Category:Newspapers","Category:Television","Category:Radio","Category:Podcasts"]},
+{id:"environment",label:"Environment",icon:"🌱",cats:["Category:Environmentalism","Category:Climate change","Category:Pollution","Category:Conservation","Category:Renewable energy","Category:Sustainability"]},
+{id:"education",label:"Education",icon:"🎓",cats:["Category:Education","Category:Universities and colleges","Category:Schools","Category:Educational technology","Category:Academic disciplines"]},
+{id:"sports",label:"Sports",icon:"⚽",cats:["Category:Sports","Category:Olympic Games","Category:Football","Category:Cricket","Category:Basketball","Category:Tennis"]},
+];
+const LANG="en";
+const C={bg:"#FAF9F5",bgAlt:"#F0EEE6",card:"#FFFFFF",cardBorder:"#E8E6DE",text:"#141413",textSec:"#3D3D3A",muted:"#73726C",mutedLight:"#A3A29C",accent:"#D97757",accentHover:"#C4684B",accentSoft:"rgba(217,119,87,0.08)",accentBorder:"rgba(217,119,87,0.2)",green:"#2E7D5B",greenSoft:"rgba(46,125,91,0.08)",greenBorder:"rgba(46,125,91,0.2)",red:"#C4533A",redSoft:"rgba(196,83,58,0.08)",redBorder:"rgba(196,83,58,0.2)",amber:"#A67A2E",amberSoft:"rgba(166,122,46,0.08)",amberBorder:"rgba(166,122,46,0.2)",blue:"#3B6BA5",blueSoft:"rgba(59,107,165,0.06)",blueBorder:"rgba(59,107,165,0.18)",btnDark:"#3D3D3A",btnDarkHover:"#2A2A28",mono:"'IBM Plex Mono',monospace",serif:"'Source Serif 4',Georgia,serif",sans:"'Inter',-apple-system,sans-serif",radius:"12px",radiusSm:"8px",shadow:"0 1px 3px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02)",shadowMd:"0 4px 12px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)"};
+
+/* ── API helpers ── */
+function extractOriginalUrl(a){try{const u=new URL(a),p=u.pathname+u.search,m=p.match(/\/((?:\d{8,14}\/)?)(https?:\/\/.+)/);return m?m[2]:null}catch{return null}}
+async function checkWayback(o,retries=3){
+  for(let attempt=0;attempt<=retries;attempt++){
+    try{
+      const r=await fetch(`https://archive.org/wayback/available?url=${encodeURIComponent(o)}`);
+      if(r.status===503&&attempt<retries){await new Promise(w=>setTimeout(w,1000*(attempt+1)));continue}
+      if(!r.ok)return null;
+      const d=await r.json();
+      return d.archived_snapshots?.closest?.available?d.archived_snapshots.closest.url:null;
+    }catch{if(attempt<retries){await new Promise(w=>setTimeout(w,1000*(attempt+1)));continue}return null}
+  }
+  return null;
+}
+async function fetchWikitext(t){const r=await fetch(`https://${LANG}.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(t)}&prop=wikitext&format=json&origin=*`);if(!r.ok)throw new Error(`API ${r.status}`);const d=await r.json();if(d.error)throw new Error(d.error.info);return d.parse.wikitext["*"]}
+async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";do{const u=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(prefix)}&cmlimit=50&cmtype=page&format=json&origin=*${cm?`&cmcontinue=${cm}`:""}`;const r=await fetch(u);const d=await r.json();if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||""}while(cm&&a.length<limit);return a.slice(0,limit)}
+
+/* ── Extract date from Wayback URL ── */
+function extractWaybackDate(waybackUrl){
+  if(!waybackUrl)return null;
+  const m=waybackUrl.match(/\/web\/(\d{4})(\d{2})(\d{2})\d*/);
+  if(!m)return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+/* ── Wikipedia search suggestions ── */
+async function searchArticles(query){
+  if(!query||query.length<2)return[];
+  try{const r=await fetch(`https://${LANG}.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=8&namespace=0&format=json&origin=*`);
+    const d=await r.json();return d[1]||[]}catch{return[]}
+}
+async function searchCategories(query){
+  if(!query||query.length<2)return[];
+  const q=query.replace(/^Category:/i,"");
+  try{const r=await fetch(`https://${LANG}.wikipedia.org/w/api.php?action=opensearch&search=Category:${encodeURIComponent(q)}&limit=8&namespace=14&format=json&origin=*`);
+    const d=await r.json();return d[1]||[]}catch{return[]}
+}
+
+function buildEditUrl(title,links){
+  const n=links.length;
+  const summary=`Replacing ${n} archive.today link${n>1?'s':''} with Wayback Machine alternative${n>1?'s':''} per [[WP:ATODAY]]`;
+  return `https://en.wikipedia.org/w/index.php?title=${encodeURIComponent(title)}&action=edit&summary=${encodeURIComponent(summary)}`;
+}
+
+/* ── Autocomplete Input ── */
+function AutocompleteInput({placeholder,value,onChange,onGo,loading,onStop,searchFn,displayFn}){
+  const[suggestions,setSuggestions]=useState([]);
+  const[showDrop,setShowDrop]=useState(false);
+  const[activeIdx,setActiveIdx]=useState(-1);
+  const debounceRef=useRef(null);
+  const wrapRef=useRef(null);
+
+  useEffect(()=>{
+    if(debounceRef.current)clearTimeout(debounceRef.current);
+    if(!value||value.length<2){setSuggestions([]);return}
+    debounceRef.current=setTimeout(async()=>{
+      const results=await searchFn(value);
+      setSuggestions(results);setShowDrop(results.length>0);setActiveIdx(-1);
+    },250);
+    return()=>{if(debounceRef.current)clearTimeout(debounceRef.current)};
+  },[value]);
+
+  useEffect(()=>{
+    const handler=e=>{if(wrapRef.current&&!wrapRef.current.contains(e.target))setShowDrop(false)};
+    document.addEventListener("mousedown",handler);return()=>document.removeEventListener("mousedown",handler);
+  },[]);
+
+  const selectItem=(item)=>{onChange(displayFn?displayFn(item):item);setShowDrop(false);setSuggestions([])};
+  const handleKey=(e)=>{
+    if(!showDrop||!suggestions.length){if(e.key==="Enter"&&!loading)onGo();return}
+    if(e.key==="ArrowDown"){e.preventDefault();setActiveIdx(p=>Math.min(p+1,suggestions.length-1))}
+    else if(e.key==="ArrowUp"){e.preventDefault();setActiveIdx(p=>Math.max(p-1,0))}
+    else if(e.key==="Enter"){e.preventDefault();if(activeIdx>=0)selectItem(suggestions[activeIdx]);else{setShowDrop(false);if(!loading)onGo()}}
+    else if(e.key==="Escape")setShowDrop(false);
+  };
+
+  return(
+    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}} ref={wrapRef}>
+      <div style={{flex:1,minWidth:220,position:"relative"}}>
+        <input type="text" value={value} onChange={e=>{onChange(e.target.value);setShowDrop(true)}} onKeyDown={handleKey}
+          onFocus={()=>{if(suggestions.length)setShowDrop(true)}}
+          placeholder={placeholder}
+          style={{width:"100%",padding:"12px 16px",borderRadius:C.radiusSm,border:`1px solid ${C.cardBorder}`,background:C.card,color:C.text,fontSize:14,fontFamily:C.sans,boxShadow:C.shadow}}/>
+        {showDrop&&suggestions.length>0&&(
+          <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,marginTop:4,background:C.card,border:`1px solid ${C.cardBorder}`,borderRadius:C.radiusSm,boxShadow:C.shadowMd,maxHeight:320,overflowY:"auto"}}>
+            {suggestions.map((item,idx)=>{
+              const label=displayFn?displayFn(item):item;
+              return(
+                <div key={label} onClick={()=>selectItem(item)}
+                  onMouseEnter={()=>setActiveIdx(idx)}
+                  style={{
+                    padding:"10px 16px",cursor:"pointer",fontSize:13,fontFamily:C.sans,
+                    color:idx===activeIdx?C.accent:C.text,
+                    background:idx===activeIdx?C.accentSoft:"transparent",
+                    borderBottom:idx<suggestions.length-1?`1px solid ${C.bgAlt}`:"none",
+                  }}>
+                  {label}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <button onClick={loading?onStop:onGo} disabled={!value.trim()&&!loading}
+        onMouseEnter={e=>{if(!loading)e.currentTarget.style.background=C.btnDarkHover}}
+        onMouseLeave={e=>{if(!loading)e.currentTarget.style.background=C.btnDark}}
+        style={{padding:"12px 28px",borderRadius:C.radiusSm,border:"none",background:loading?C.red:C.btnDark,color:"#FAF9F5",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:C.sans,opacity:(!value.trim()&&!loading)?0.35:1,boxShadow:C.shadow,alignSelf:"flex-start"}}>
+        {loading?"Stop":"Scan"}
+      </button>
+    </div>
+  );
+}
+
+/* ── Copy button ── */
+function CopyButton({text,label,variant="default"}){
+  const[copied,setCopied]=useState(false);
+  const copy=async()=>{try{await navigator.clipboard.writeText(text)}catch{const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t)}setCopied(true);setTimeout(()=>setCopied(false),2000)};
+  const s={default:{bg:C.bgAlt,b:C.cardBorder,c:C.textSec,h:"#E8E6DE"},accent:{bg:C.accentSoft,b:C.accentBorder,c:C.accent,h:"rgba(217,119,87,0.15)"},green:{bg:C.greenSoft,b:C.greenBorder,c:C.green,h:"rgba(46,125,91,0.15)"}}[variant]||{bg:C.bgAlt,b:C.cardBorder,c:C.textSec,h:"#E8E6DE"};
+  return(
+    <button onClick={copy} onMouseEnter={e=>e.currentTarget.style.background=s.h} onMouseLeave={e=>e.currentTarget.style.background=s.bg}
+      style={{padding:"4px 10px",borderRadius:"6px",border:`1px solid ${s.b}`,background:s.bg,color:s.c,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:C.sans,whiteSpace:"nowrap",animation:copied?"_copyFlash 0.3s ease":"none",display:"inline-flex",alignItems:"center",gap:4}}>
+      {copied?(<React.Fragment><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>Copied!</React.Fragment>)
+      :(<React.Fragment><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><path d="M3 11V3C3 2.44772 3.44772 2 4 2H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>{label||"Copy"}</React.Fragment>)}
+    </button>
+  );
+}
+
+/* ── Small components ── */
+function Pill({variant,children}){const s={red:{bg:C.redSoft,c:C.red,b:C.redBorder},green:{bg:C.greenSoft,c:C.green,b:C.greenBorder},amber:{bg:C.amberSoft,c:C.amber,b:C.amberBorder},blue:{bg:C.blueSoft,c:C.blue,b:C.blueBorder},muted:{bg:C.bgAlt,c:C.muted,b:C.cardBorder}}[variant]||{bg:C.bgAlt,c:C.muted,b:C.cardBorder};return<span style={{display:"inline-block",padding:"3px 10px",borderRadius:"999px",fontSize:"11px",fontWeight:600,letterSpacing:"0.01em",color:s.c,background:s.bg,border:`1px solid ${s.b}`,whiteSpace:"nowrap"}}>{children}</span>}
+function Stat({value,label,variant}){const color={accent:C.accent,red:C.red,green:C.green,amber:C.amber,muted:C.muted}[variant]||C.text;return(<div style={{background:C.card,borderRadius:C.radius,padding:"16px 12px",textAlign:"center",border:`1px solid ${C.cardBorder}`,boxShadow:C.shadow}}><div style={{fontSize:28,fontWeight:700,color,fontFamily:C.serif,lineHeight:1}}>{value}</div><div style={{fontSize:10,color:C.muted,marginTop:6,textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:600}}>{label}</div></div>)}
+function Spinner({text}){return<div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0"}}><div style={{width:16,height:16,border:`2px solid ${C.accent}`,borderTopColor:"transparent",borderRadius:"50%",animation:"_sp .7s linear infinite"}}/><span style={{color:C.textSec,fontSize:13}}>{text}</span></div>}
+function TabBtn({active,children,onClick}){return<button onClick={onClick} style={{padding:"10px 20px",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:C.sans,background:"transparent",color:active?C.accent:C.muted,borderBottom:active?`2px solid ${C.accent}`:"2px solid transparent",borderRadius:0}}>{children}</button>}
+function EditIcon(){return<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{flexShrink:0}}><path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3.5L12.5 6.5" stroke="currentColor" strokeWidth="1.5"/></svg>}
+function ErrorMsg({msg}){return<div style={{background:C.redSoft,border:`1px solid ${C.redBorder}`,borderRadius:C.radiusSm,padding:"12px 16px",color:C.red,marginBottom:16,fontSize:13,lineHeight:1.5}}>{msg}</div>}
+
+/* ── Wayback 503 Notice ── */
+function WaybackNotice(){
+  const[dismissed,setDismissed]=useState(false);
+  if(dismissed)return null;
+  return(
+    <div style={{background:C.amberSoft,border:`1px solid ${C.amberBorder}`,borderRadius:C.radius,padding:"14px 18px",marginBottom:18,position:"relative"}}>
+      <button onClick={()=>setDismissed(true)} style={{position:"absolute",top:10,right:12,background:"none",border:"none",color:C.mutedLight,cursor:"pointer",fontSize:16,lineHeight:1,padding:4}} title="Dismiss">×</button>
+      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+        <span style={{fontSize:18,lineHeight:1,flexShrink:0,marginTop:1}}>⚠️</span>
+        <div>
+          <div style={{fontWeight:700,fontSize:13,color:C.amber,marginBottom:4}}>Wayback Machine links may show "503 Service Unavailable"</div>
+          <div style={{fontSize:12,color:C.textSec,lineHeight:1.65}}>
+            This is an <strong>Internet Archive server-side issue</strong>, not a problem with this tool or the archived page itself. The Internet Archive serves billions of pages and their servers occasionally return 503 errors under heavy load or during maintenance. <strong>This tool automatically retries failed requests up to 3 times</strong>, but if a Wayback link still shows 503 when you click it, simply refresh — the archived content is still there, it's just a temporary capacity bottleneck on their end.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Scan Engine ── */
+function useScanEngine(){
+  const[results,setResults]=useState([]);const[loading,setLoading]=useState(false);const[progress,setProgress]=useState("");const[error,setError]=useState("");const[done,setDone]=useState(false);const abort=useRef(false);
+  const reset=()=>{setResults([]);setError("");setDone(false);setProgress("")};
+  const scanArticles=useCallback(async(titles)=>{
+    setLoading(true);setError("");setResults([]);setDone(false);abort.current=false;
+    try{for(let ti=0;ti<titles.length;ti++){if(abort.current)break;const title=titles[ti];setProgress(`Scanning ${ti+1} of ${titles.length}: ${title}`);
+      let wikitext;try{wikitext=await fetchWikitext(title)}catch(e){setResults(p=>[...p,{title,links:[],error:e.message}]);continue}
+      const matches=[...new Set((wikitext.match(AT_RE)||[]).map(u=>u.replace(/[\]|}<>]+$/,"")))];
+      const links=matches.map(url=>({archiveUrl:url,originalUrl:extractOriginalUrl(url),waybackUrl:null,status:"pending"}));
+      const artResult={title,links:[...links]};setResults(p=>[...p,artResult]);
+      for(let li=0;li<links.length;li++){if(abort.current)break;const lk=links[li];
+        if(lk.originalUrl){setProgress(`Scanning ${ti+1} of ${titles.length}: ${title} — Wayback (${li+1}/${links.length})`);const wb=await checkWayback(lk.originalUrl);lk.waybackUrl=wb;lk.status=wb?"found":"notfound"}else{lk.status="noextract"}
+        setResults(p=>{const u=[...p];const idx=u.findIndex(r=>r.title===title);if(idx!==-1)u[idx]={...artResult,links:[...links]};return u});await new Promise(r=>setTimeout(r,300))}
+      links.forEach(l=>{if(l.status==="pending")l.status="noextract"});
+      setResults(p=>{const u=[...p];const idx=u.findIndex(r=>r.title===title);if(idx!==-1)u[idx]={...artResult,links:[...links]};return u})
+    }}catch(e){setError(e.message)}finally{setLoading(false);setDone(true);setProgress("")}
+  },[]);
+  return{results,loading,progress,error,done,scanArticles,stop:()=>{abort.current=true},reset};
+}
+
+/* ── Results View ── */
+function ResultsView({results,done,showOnlyAffected=false}){
+  const[filter,setFilter]=useState("all");
+  if(!results.length&&done)return<div style={{textAlign:"center",color:C.muted,padding:48,fontSize:14}}>No results found.</div>;
+  if(!results.length)return null;
+  const affected=results.filter(r=>r.links.length>0),clean=results.filter(r=>r.links.length===0);
+  const totalLinks=results.reduce((s,r)=>s+r.links.length,0);
+  const withAlts=results.reduce((s,r)=>s+r.links.filter(l=>l.waybackUrl).length,0);
+  const noAlts=results.reduce((s,r)=>s+r.links.filter(l=>l.status==="notfound").length,0);
+  const pending=results.reduce((s,r)=>s+r.links.filter(l=>l.status==="pending").length,0);
+  const display=showOnlyAffected?(filter==="clean"?clean:affected):filter==="affected"?affected:filter==="clean"?clean:results;
+
+  return(
+    <div style={{animation:"_fadeIn .3s ease"}}>
+      {/* HOW TO FIX GUIDE */}
+      {withAlts>0&&(
+        <div style={{background:C.blueSoft,border:`1px solid ${C.blueBorder}`,borderRadius:C.radius,padding:"16px 20px",marginBottom:16}}>
+          <div style={{fontWeight:700,marginBottom:8,display:"flex",alignItems:"center",gap:6,fontSize:13,color:C.blue}}><EditIcon/> How to fix articles</div>
+          <div style={{color:C.textSec,fontSize:12,lineHeight:1.8}}>
+            <strong>1.</strong> Click <strong style={{color:C.accent}}>Fix on Wikipedia</strong> to open the article editor with a pre-filled edit summary.<br/>
+            <strong>2.</strong> In the editor toolbar, click <strong>Advanced</strong> → then click the <strong>Search and replace</strong> button (magnifying glass icon). On Windows/Linux you can also try <strong>Ctrl+H</strong>.<br/>
+            <strong>3.</strong> Click <strong>Copy old URL</strong> and paste into the "Find" field.<br/>
+            <strong>4.</strong> Click <strong>Copy new URL</strong> and paste into the "Replace" field. Hit Replace.<br/>
+            <strong>5.</strong> Click <strong>Copy date</strong> and update the <code style={{fontSize:11,fontFamily:C.mono,background:"rgba(59,107,165,0.08)",padding:"1px 4px",borderRadius:3}}>|archive-date=</code> parameter in the citation template to match the Wayback snapshot date.<br/>
+            <strong>6.</strong> Repeat for each link, review your changes, then click <strong>Publish changes</strong>.
+          </div>
+        </div>
+      )}
+
+      {/* WAYBACK 503 NOTICE — shown when alternatives found */}
+      {withAlts>0&&<WaybackNotice/>}
+
+      {/* STATS */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(110px, 1fr))",gap:10,marginBottom:24}}>
+        <Stat value={results.length} label="Scanned" variant="muted"/><Stat value={affected.length} label="Affected" variant="red"/>
+        <Stat value={totalLinks} label="AT Links" variant="amber"/><Stat value={withAlts} label="Alternatives" variant="green"/>
+        <Stat value={noAlts} label="No Alt" variant="red"/>{pending>0&&<Stat value={pending} label="Pending" variant="amber"/>}
+      </div>
+
+      {/* FILTERS */}
+      <div style={{display:"flex",gap:6,marginBottom:18}}>
+        {[{v:"all",l:showOnlyAffected?`Affected (${affected.length})`:`All (${results.length})`},...(!showOnlyAffected?[{v:"affected",l:`Affected (${affected.length})`}]:[]),{v:"clean",l:`Clean (${clean.length})`}].map(f=>
+          <button key={f.v} onClick={()=>setFilter(f.v)} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter===f.v?C.accent:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter===f.v?C.accentSoft:C.card,color:filter===f.v?C.accent:C.muted}}>{f.l}</button>
+        )}
+      </div>
+
+      {/* ARTICLE CARDS */}
+      {display.map((art,i)=>(
+        <div key={art.title+i} style={{background:C.card,borderRadius:C.radius,padding:"20px 22px",marginBottom:14,border:`1px solid ${C.cardBorder}`,boxShadow:C.shadow,animation:"_fadeIn .25s ease"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+            <a href={`https://en.wikipedia.org/wiki/${encodeURIComponent(art.title)}`} target="_blank" rel="noopener noreferrer"
+              style={{color:C.text,textDecoration:"none",fontSize:15,fontWeight:600}}
+              onMouseEnter={e=>e.currentTarget.style.color=C.accent} onMouseLeave={e=>e.currentTarget.style.color=C.text}>
+              {art.title}
+            </a>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+              {art.links.length>0?(<React.Fragment><Pill variant="red">{art.links.length} archive.today</Pill>{art.links.filter(l=>l.waybackUrl).length>0&&<Pill variant="green">{art.links.filter(l=>l.waybackUrl).length} alt{art.links.filter(l=>l.waybackUrl).length>1?"s":""}</Pill>}</React.Fragment>):(<Pill variant="green">Clean</Pill>)}
+            </div>
+          </div>
+
+          {art.links.length>0&&(
+            <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+              <a href={buildEditUrl(art.title,art.links)} target="_blank" rel="noopener noreferrer"
+                onMouseEnter={e=>e.currentTarget.style.background=C.accentHover} onMouseLeave={e=>e.currentTarget.style.background=C.accent}
+                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:C.radiusSm,border:"none",background:C.accent,color:"#fff",fontSize:13,fontWeight:600,textDecoration:"none",fontFamily:C.sans,boxShadow:C.shadow}}>
+                <EditIcon/> Fix on Wikipedia
+              </a>
+              <span style={{fontSize:11,color:C.mutedLight}}>Opens editor with pre-filled edit summary</span>
+            </div>
+          )}
+
+          {art.links.length>0&&(
+            <div style={{marginTop:14}}>
+              {art.links.map((lk,li)=>(
+                <div key={li} style={{background:C.bgAlt,borderRadius:C.radiusSm,padding:"14px 16px",marginBottom:8,borderLeft:`3px solid ${lk.waybackUrl?C.green:lk.status==="pending"?C.amber:C.red}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:6}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:10,color:C.muted,fontFamily:C.mono,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:500}}>Archive.today link #{li+1}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                        <a href={lk.archiveUrl} target="_blank" rel="noopener noreferrer" style={{color:C.red,fontSize:12,wordBreak:"break-all",fontFamily:C.mono,fontWeight:500}}>{lk.archiveUrl}</a>
+                        <CopyButton text={lk.archiveUrl} label="Copy old URL"/>
+                      </div>
+                      {lk.originalUrl&&(<div style={{marginTop:6}}><span style={{color:C.mutedLight,fontSize:10,fontFamily:C.mono}}>Original → </span><a href={lk.originalUrl} target="_blank" rel="noopener noreferrer" style={{color:C.muted,fontSize:11,wordBreak:"break-all",fontFamily:C.mono}}>{lk.originalUrl}</a></div>)}
+                    </div>
+                    {lk.status==="pending"?<Pill variant="amber">Pending</Pill>:lk.status==="found"?<Pill variant="green">Alt found</Pill>:lk.status==="notfound"?<Pill variant="red">No alt</Pill>:<Pill variant="muted">Can't extract</Pill>}
+                  </div>
+                  {lk.waybackUrl&&(
+                    <div style={{marginTop:10,padding:"10px 14px",background:C.greenSoft,borderRadius:C.radiusSm,border:`1px solid ${C.greenBorder}`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:6}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:10,color:C.green,fontWeight:600,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em"}}>Wayback Machine alternative</div>
+                          <a href={lk.waybackUrl} target="_blank" rel="noopener noreferrer" style={{color:C.green,fontSize:12,wordBreak:"break-all",fontFamily:C.mono,fontWeight:500}}>{lk.waybackUrl}</a>
+                        </div>
+                        <CopyButton text={lk.waybackUrl} label="Copy new URL" variant="green"/>
+                      </div>
+                      {extractWaybackDate(lk.waybackUrl)&&(
+                        <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.greenBorder}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:6}}>
+                          <div>
+                            <span style={{fontSize:10,color:C.green,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Archive-date → </span>
+                            <code style={{fontSize:12,color:C.green,fontFamily:C.mono,fontWeight:600,background:"rgba(46,125,91,0.1)",padding:"2px 6px",borderRadius:4}}>{extractWaybackDate(lk.waybackUrl)}</code>
+                            <span style={{fontSize:10,color:C.muted,marginLeft:6}}>Use in <code style={{fontSize:10,fontFamily:C.mono}}>|archive-date=</code></span>
+                          </div>
+                          <CopyButton text={extractWaybackDate(lk.waybackUrl)} label="Copy date" variant="green"/>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Tabs ── */
+function ArticleTab(){
+  const[input,setInput]=useState("");const engine=useScanEngine();
+  const go=()=>{if(input.trim())engine.scanArticles([input.trim()])};
+  return(
+    <React.Fragment>
+      <AutocompleteInput placeholder="Search for a Wikipedia article…" value={input} onChange={setInput} onGo={go} loading={engine.loading} onStop={engine.stop} searchFn={searchArticles}/>
+      {engine.progress&&<Spinner text={engine.progress}/>}{engine.error&&<ErrorMsg msg={engine.error}/>}
+      <ResultsView results={engine.results} done={engine.done}/>
+    </React.Fragment>
+  );
+}
+
+function CategoryTab(){
+  const[input,setInput]=useState("");const engine=useScanEngine();
+  const go=async()=>{if(!input.trim())return;engine.reset();try{const t=await fetchCatMembers(input.trim(),500);if(t.length)engine.scanArticles(t)}catch(e){}};
+  return(
+    <React.Fragment>
+      <AutocompleteInput placeholder="Search for a Wikipedia category…" value={input} onChange={setInput} onGo={go} loading={engine.loading} onStop={engine.stop} searchFn={searchCategories}/>
+      {engine.progress&&<Spinner text={engine.progress}/>}{engine.error&&<ErrorMsg msg={engine.error}/>}
+      <ResultsView results={engine.results} done={engine.done}/>
+    </React.Fragment>
+  );
+}
+
+function TopicTab(){
+  const[selectedTopic,setSelectedTopic]=useState(null);const[customCats,setCustomCats]=useState("");const[phase,setPhase]=useState("pick");const[gatherProgress,setGatherProgress]=useState("");const engine=useScanEngine();
+  const startScan=async(cats)=>{engine.reset();setPhase("gathering");setGatherProgress("Gathering articles…");
+    try{const seen=new Set(),all=[];for(let i=0;i<cats.length&&all.length<500;i++){setGatherProgress(`Category ${i+1}/${cats.length}: ${cats[i]} (${all.length} articles)`);const m=await fetchCatMembers(cats[i],500-all.length);for(const t of m){if(!seen.has(t)&&all.length<500){seen.add(t);all.push(t)}}}
+      if(!all.length){setGatherProgress("");setPhase("pick");return}setGatherProgress("");setPhase("scanning");engine.scanArticles(all)}catch(e){setGatherProgress("");setPhase("pick")}};
+  const handleTopicSelect=t=>{setSelectedTopic(t);startScan(t.cats)};
+  const handleCustom=()=>{const cats=customCats.split("\n").map(s=>s.trim()).filter(Boolean).map(c=>c.startsWith("Category:")?c:`Category:${c}`);if(!cats.length)return;setSelectedTopic({id:"custom",label:"Custom",icon:"✏️",cats});startScan(cats)};
+  const backToPick=()=>{engine.stop();engine.reset();setSelectedTopic(null);setPhase("pick");setGatherProgress("")};
+
+  if(phase==="pick")return(
+    <div>
+      <div style={{marginBottom:16}}><h3 style={{fontSize:17,fontWeight:700,color:C.text,margin:"0 0 6px",fontFamily:C.serif}}>Choose a topic area</h3><p style={{fontSize:13,color:C.muted,margin:0,lineHeight:1.5}}>Select a predefined topic or define your own categories below.</p></div>
+      <div style={{background:C.amberSoft,border:`1px solid ${C.amberBorder}`,borderRadius:C.radiusSm,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:20,lineHeight:1,flexShrink:0}}>📋</span>
+        <div><span style={{fontWeight:700,fontSize:13,color:C.amber}}>Scan limit: 500 articles per topic.</span><span style={{fontSize:12,color:C.textSec,marginLeft:4}}>Articles are gathered across all categories in the selected topic. If a topic has more than 500 articles, only the first 500 (deduplicated) will be scanned.</span></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(155px, 1fr))",gap:10,marginBottom:28}}>
+        {TOPICS.map(t=>(
+          <button key={t.id} onClick={()=>handleTopicSelect(t)} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.accent;e.currentTarget.style.boxShadow=C.shadowMd}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.cardBorder;e.currentTarget.style.boxShadow=C.shadow}}
+            style={{background:C.card,border:`1px solid ${C.cardBorder}`,borderRadius:C.radius,padding:"18px 14px",cursor:"pointer",textAlign:"left",color:C.text,fontFamily:C.sans,boxShadow:C.shadow}}>
+            <div style={{fontSize:26,marginBottom:8}}>{t.icon}</div><div style={{fontSize:14,fontWeight:600}}>{t.label}</div><div style={{fontSize:11,color:C.mutedLight,marginTop:4}}>{t.cats.length} categories</div>
+          </button>))}
+      </div>
+      <div style={{background:C.card,borderRadius:C.radius,padding:22,border:`1px solid ${C.cardBorder}`,boxShadow:C.shadow}}>
+        <h4 style={{margin:"0 0 6px",fontSize:15,fontWeight:700,color:C.text,fontFamily:C.serif}}>Custom categories</h4>
+        <p style={{fontSize:12,color:C.muted,margin:"0 0 14px",lineHeight:1.5}}>Enter one Wikipedia category per line (up to 500 articles total).</p>
+        <textarea value={customCats} onChange={e=>setCustomCats(e.target.value)} placeholder={"Category:Radiology\nCategory:Medical imaging\nCategory:Nuclear medicine"} rows={4} style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:C.radiusSm,border:`1px solid ${C.cardBorder}`,background:C.bg,color:C.text,fontSize:13,fontFamily:C.mono,resize:"vertical"}}/>
+        <button onClick={handleCustom} disabled={!customCats.trim()} onMouseEnter={e=>{if(customCats.trim())e.currentTarget.style.background=C.btnDarkHover}} onMouseLeave={e=>{e.currentTarget.style.background=C.btnDark}}
+          style={{marginTop:12,padding:"10px 24px",borderRadius:C.radiusSm,border:"none",background:C.btnDark,color:"#FAF9F5",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:C.sans,opacity:customCats.trim()?1:0.35}}>Scan custom categories</button>
+      </div>
+    </div>
+  );
+
+  return(
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,flexWrap:"wrap",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={backToPick} onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent} onMouseLeave={e=>e.currentTarget.style.borderColor=C.cardBorder}
+            style={{padding:"7px 16px",borderRadius:C.radiusSm,border:`1px solid ${C.cardBorder}`,background:C.card,color:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:C.sans,boxShadow:C.shadow}}>← Back</button>
+          {selectedTopic&&<span style={{fontSize:15,fontWeight:700,color:C.text,fontFamily:C.serif}}>{selectedTopic.icon} {selectedTopic.label}</span>}
+          {engine.results.length>0&&<span style={{fontSize:11,color:C.muted,background:C.bgAlt,padding:"4px 10px",borderRadius:"999px",border:`1px solid ${C.cardBorder}`,fontWeight:600}}>{engine.results.length} / 500 max</span>}
+        </div>
+        {engine.loading&&<button onClick={()=>{engine.stop();setPhase("scanning")}} style={{padding:"7px 16px",borderRadius:C.radiusSm,border:"none",background:C.red,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>Stop scan</button>}
+      </div>
+      {gatherProgress&&<Spinner text={gatherProgress}/>}{engine.progress&&<Spinner text={engine.progress}/>}{engine.error&&<ErrorMsg msg={engine.error}/>}
+      <ResultsView results={engine.results} done={engine.done} showOnlyAffected={true}/>
+    </div>
+  );
+}
+
+/* ── Main App ── */
+function App(){
+  const[tab,setTab]=useState("article");
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:C.sans}}>
+      <header style={{borderBottom:`1px solid ${C.cardBorder}`,padding:"28px 20px 0",textAlign:"center",background:C.card}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L12 22M2 12H22M4.93 4.93L19.07 19.07M19.07 4.93L4.93 19.07" stroke="#D97757" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          <span style={{fontSize:12,color:C.accent,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>Wikipedia Reference Audit</span>
+        </div>
+        <h1 style={{fontFamily:C.serif,fontSize:"clamp(22px,3.5vw,32px)",fontWeight:700,margin:"0 0 6px",color:C.text,lineHeight:1.2}}>Archive.today Link Detector</h1>
+        <p style={{color:C.muted,fontSize:13,maxWidth:580,margin:"0 auto 20px",lineHeight:1.55}}>Detect archive.today references in English Wikipedia, find Wayback Machine replacements, and fix them directly.</p>
+        <div style={{display:"flex",justifyContent:"center",gap:0,borderTop:`1px solid ${C.cardBorder}`,margin:"0 -20px",padding:"0 20px"}}>
+          <TabBtn active={tab==="article"} onClick={()=>setTab("article")}>Article</TabBtn>
+          <TabBtn active={tab==="category"} onClick={()=>setTab("category")}>Category</TabBtn>
+          <TabBtn active={tab==="topic"} onClick={()=>setTab("topic")}>Topic Browse</TabBtn>
+        </div>
+      </header>
+      <main style={{maxWidth:880,margin:"0 auto",padding:"24px 20px 48px"}}>{tab==="article"&&<ArticleTab/>}{tab==="category"&&<CategoryTab/>}{tab==="topic"&&<TopicTab/>}</main>
+      <footer style={{maxWidth:880,margin:"0 auto",padding:"0 20px 32px"}}>
+        <div style={{padding:"16px 20px",background:C.bgAlt,borderRadius:C.radius,border:`1px solid ${C.cardBorder}`,fontSize:12,color:C.muted,lineHeight:1.8}}>
+          <strong style={{color:C.textSec}}>Detected domains:</strong> {AT_DOMAINS.join(", ")}<br/>
+          <strong style={{color:C.textSec}}>How it works:</strong> Fetches wikitext → regex-matches archive.today URLs → extracts original URLs → queries Wayback Machine API → provides one-click edit links.<br/>
+          <strong style={{color:C.textSec}}>Limits:</strong> Up to 500 articles per scan. Wayback checks rate-limited (~300ms between requests). Auto-retries 503 errors up to 3 times with backoff.
+        </div>
+        <div style={{textAlign:"center",marginTop:16,fontSize:12,color:C.mutedLight}}>
+          Created by <a href="https://github.com/nethahussain" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none",fontWeight:600}} onMouseEnter={e=>e.currentTarget.style.textDecoration="underline"} onMouseLeave={e=>e.currentTarget.style.textDecoration="none"}>Netha Hussain</a> with Claude AI
+        </div>
+      </footer>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
