@@ -205,23 +205,26 @@ function WaybackNotice(){
 
 /* ── Scan Engine ── */
 function useScanEngine(){
-  const[results,setResults]=useState([]);const[loading,setLoading]=useState(false);const[progress,setProgress]=useState("");const[error,setError]=useState("");const[done,setDone]=useState(false);const abort=useRef(false);
-  const reset=()=>{setResults([]);setError("");setDone(false);setProgress("")};
-  const scanArticles=useCallback(async(titles)=>{
-    setLoading(true);setError("");setResults([]);setDone(false);abort.current=false;
-    try{for(let ti=0;ti<titles.length;ti++){if(abort.current)break;const title=titles[ti];setProgress(`Scanning ${ti+1} of ${titles.length}: ${title}`);
+  const[results,setResults]=useState([]);const[loading,setLoading]=useState(false);const[progress,setProgress]=useState("");const[error,setError]=useState("");const[done,setDone]=useState(false);const abort=useRef(false);const affectedCount=useRef(0);
+  const reset=()=>{setResults([]);setError("");setDone(false);setProgress("");affectedCount.current=0};
+  const scanArticles=useCallback(async(titles,{append=false}={})=>{
+    setLoading(true);setError("");if(!append){setResults([]);affectedCount.current=0}setDone(false);if(!append)abort.current=false;
+    let newHits=0;
+    try{for(let ti=0;ti<titles.length;ti++){if(abort.current)break;const title=titles[ti];setProgress(`Scanning ${append?"(extended) ":""}${ti+1} of ${titles.length}: ${title}`);
       let wikitext;try{wikitext=await fetchWikitext(title)}catch(e){setResults(p=>[...p,{title,links:[],error:e.message}]);continue}
       const matches=[...new Set((wikitext.match(AT_RE)||[]).map(u=>u.replace(/[\]|}<>]+$/,"")))];
       const links=matches.map(url=>({archiveUrl:url,originalUrl:extractOriginalUrl(url),waybackUrl:null,status:"pending"}));
+      if(links.length>0){newHits++;affectedCount.current++}
       const artResult={title,links:[...links]};setResults(p=>[...p,artResult]);
       for(let li=0;li<links.length;li++){if(abort.current)break;const lk=links[li];
-        if(lk.originalUrl){setProgress(`Scanning ${ti+1} of ${titles.length}: ${title} — Wayback (${li+1}/${links.length})`);const wb=await checkWayback(lk.originalUrl);lk.waybackUrl=wb;lk.status=wb?"found":"notfound"}else{lk.status="noextract"}
+        if(lk.originalUrl){setProgress(`Scanning ${append?"(extended) ":""}${ti+1} of ${titles.length}: ${title} — Wayback (${li+1}/${links.length})`);const wb=await checkWayback(lk.originalUrl);lk.waybackUrl=wb;lk.status=wb?"found":"notfound"}else{lk.status="noextract"}
         setResults(p=>{const u=[...p];const idx=u.findIndex(r=>r.title===title);if(idx!==-1)u[idx]={...artResult,links:[...links]};return u});await new Promise(r=>setTimeout(r,300))}
       links.forEach(l=>{if(l.status==="pending")l.status="noextract"});
       setResults(p=>{const u=[...p];const idx=u.findIndex(r=>r.title===title);if(idx!==-1)u[idx]={...artResult,links:[...links]};return u})
     }}catch(e){setError(e.message)}finally{setLoading(false);setDone(true);setProgress("")}
+    return{newHits,totalAffected:affectedCount.current};
   },[]);
-  return{results,loading,progress,error,done,scanArticles,stop:()=>{abort.current=true},reset};
+  return{results,loading,progress,error,done,scanArticles,stop:()=>{abort.current=true},reset,affectedCount};
 }
 
 /* ── Results View ── */
@@ -356,7 +359,9 @@ function ArticleTab(){
 
 function CategoryTab(){
   const[input,setInput]=useState("");const engine=useScanEngine();
-  const go=async()=>{if(!input.trim())return;engine.reset();try{const t=await fetchCatMembers(input.trim(),500);if(t.length)engine.scanArticles(t)}catch(e){}};
+  const go=async()=>{if(!input.trim())return;engine.reset();try{const seen=new Set();let totalAffected=0;let round=0;const MAX_ROUNDS=10;const cat=input.trim();
+    while(totalAffected<5&&round<MAX_ROUNDS){round++;const t=await fetchCatMembers(cat,500);const fresh=t.filter(x=>!seen.has(x));fresh.forEach(x=>seen.add(x));if(!fresh.length)break;
+    const r=await engine.scanArticles(fresh,{append:round>1});totalAffected=r.totalAffected}}catch(e){}};
   return(
     <React.Fragment>
       <AutocompleteInput placeholder="Search for a Wikipedia category…" value={input} onChange={setInput} onGo={go} loading={engine.loading} onStop={engine.stop} searchFn={searchCategories}/>
@@ -369,8 +374,11 @@ function CategoryTab(){
 function TopicTab(){
   const[selectedTopic,setSelectedTopic]=useState(null);const[customCats,setCustomCats]=useState("");const[phase,setPhase]=useState("pick");const[gatherProgress,setGatherProgress]=useState("");const engine=useScanEngine();
   const startScan=async(cats)=>{engine.reset();setPhase("gathering");setGatherProgress("Gathering articles…");
-    try{const seen=new Set(),all=[];for(let i=0;i<cats.length&&all.length<500;i++){setGatherProgress(`Category ${i+1}/${cats.length}: ${cats[i]} (${all.length} articles)`);const m=await fetchCatMembers(cats[i],500-all.length);for(const t of m){if(!seen.has(t)&&all.length<500){seen.add(t);all.push(t)}}}
-      if(!all.length){setGatherProgress("");setPhase("pick");return}setGatherProgress("");setPhase("scanning");engine.scanArticles(all)}catch(e){setGatherProgress("");setPhase("pick")}};
+    try{const seen=new Set();let totalAffected=0;let round=0;const MAX_ROUNDS=10;
+      while(totalAffected<5&&round<MAX_ROUNDS){round++;const all=[];for(let i=0;i<cats.length&&all.length<500;i++){setGatherProgress(`${round>1?`Round ${round}: `:""}Category ${i+1}/${cats.length}: ${cats[i]} (${all.length} articles)`);const m=await fetchCatMembers(cats[i],500-all.length);for(const t of m){if(!seen.has(t)&&all.length<500){seen.add(t);all.push(t)}}}
+      if(!all.length)break;setGatherProgress("");setPhase("scanning");const r=await engine.scanArticles(all,{append:round>1});totalAffected=r.totalAffected;
+      if(totalAffected<5&&round<MAX_ROUNDS){setPhase("gathering");setGatherProgress(`Found ${totalAffected} affected article${totalAffected!==1?"s":""} so far (need 5). Fetching more…`)}}
+      setGatherProgress("");setPhase("scanning")}catch(e){setGatherProgress("");setPhase("pick")}};
   const handleTopicSelect=t=>{setSelectedTopic(t);startScan(t.cats)};
   const handleCustom=()=>{const cats=customCats.split("\n").map(s=>s.trim()).filter(Boolean).map(c=>c.startsWith("Category:")?c:`Category:${c}`);if(!cats.length)return;setSelectedTopic({id:"custom",label:"Custom",icon:"✏️",cats});startScan(cats)};
   const backToPick=()=>{engine.stop();engine.reset();setSelectedTopic(null);setPhase("pick");setGatherProgress("")};
@@ -380,7 +388,7 @@ function TopicTab(){
       <div style={{marginBottom:16}}><h3 style={{fontSize:17,fontWeight:700,color:C.text,margin:"0 0 6px",fontFamily:C.serif}}>Choose a topic area</h3><p style={{fontSize:13,color:C.muted,margin:0,lineHeight:1.5}}>Select a predefined topic or define your own categories below.</p></div>
       <div style={{background:C.amberSoft,border:`1px solid ${C.amberBorder}`,borderRadius:C.radiusSm,padding:"12px 16px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
         <span style={{fontSize:20,lineHeight:1,flexShrink:0}}>📋</span>
-        <div><span style={{fontWeight:700,fontSize:13,color:C.amber}}>Scan limit: 500 articles per topic.</span><span style={{fontSize:12,color:C.textSec,marginLeft:4}}>Articles are randomly sampled across all categories in the selected topic. Scanning the same topic again will return a different set of articles.</span></div>
+        <div><span style={{fontWeight:700,fontSize:13,color:C.amber}}>Scans 500 articles per round.</span><span style={{fontSize:12,color:C.textSec,marginLeft:4}}>If fewer than 5 affected articles are found, the scan automatically continues with a new batch of articles (up to 10 rounds). Articles are randomly sampled each time.</span></div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(155px, 1fr))",gap:10,marginBottom:28}}>
         {TOPICS.map(t=>(
@@ -406,7 +414,7 @@ function TopicTab(){
           <button onClick={backToPick} onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent} onMouseLeave={e=>e.currentTarget.style.borderColor=C.cardBorder}
             style={{padding:"7px 16px",borderRadius:C.radiusSm,border:`1px solid ${C.cardBorder}`,background:C.card,color:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:C.sans,boxShadow:C.shadow}}>← Back</button>
           {selectedTopic&&<span style={{fontSize:15,fontWeight:700,color:C.text,fontFamily:C.serif}}>{selectedTopic.icon} {selectedTopic.label}</span>}
-          {engine.results.length>0&&<span style={{fontSize:11,color:C.muted,background:C.bgAlt,padding:"4px 10px",borderRadius:"999px",border:`1px solid ${C.cardBorder}`,fontWeight:600}}>{engine.results.length} / 500 max</span>}
+          {engine.results.length>0&&<span style={{fontSize:11,color:C.muted,background:C.bgAlt,padding:"4px 10px",borderRadius:"999px",border:`1px solid ${C.cardBorder}`,fontWeight:600}}>{engine.results.length} scanned</span>}
         </div>
         {engine.loading&&<button onClick={()=>{engine.stop();setPhase("scanning")}} style={{padding:"7px 16px",borderRadius:C.radiusSm,border:"none",background:C.red,color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>Stop scan</button>}
       </div>
