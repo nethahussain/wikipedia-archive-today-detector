@@ -48,8 +48,69 @@ const TOPICS=[
 const LANG="en";
 const C={bg:"#FAF9F5",bgAlt:"#F0EEE6",card:"#FFFFFF",cardBorder:"#E8E6DE",text:"#141413",textSec:"#3D3D3A",muted:"#73726C",mutedLight:"#A3A29C",accent:"#D97757",accentHover:"#C4684B",accentSoft:"rgba(217,119,87,0.08)",accentBorder:"rgba(217,119,87,0.2)",green:"#2E7D5B",greenSoft:"rgba(46,125,91,0.08)",greenBorder:"rgba(46,125,91,0.2)",red:"#C4533A",redSoft:"rgba(196,83,58,0.08)",redBorder:"rgba(196,83,58,0.2)",amber:"#A67A2E",amberSoft:"rgba(166,122,46,0.08)",amberBorder:"rgba(166,122,46,0.2)",blue:"#3B6BA5",blueSoft:"rgba(59,107,165,0.06)",blueBorder:"rgba(59,107,165,0.18)",btnDark:"#3D3D3A",btnDarkHover:"#2A2A28",mono:"'IBM Plex Mono',monospace",serif:"'Source Serif 4',Georgia,serif",sans:"'Inter',-apple-system,sans-serif",radius:"12px",radiusSm:"8px",shadow:"0 1px 3px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02)",shadowMd:"0 4px 12px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)"};
 
+function extractOriginalUrl(archiveUrl, wikitext) {
+  try {
+    const u = new URL(archiveUrl), p = u.pathname + u.search;
+    const m = p.match(/\/((?:\d{8,14}\/)?)(https?:\/\/.+)/);
+    if (m && m[2]) return m[2];
+  } catch(e) {}
+
+  if (!wikitext) {
+      console.warn("ABORT 1: Wikitext variable is missing for:", archiveUrl);
+      return null;
+  }
+
+  const blockInfo = extractCitationBlock(wikitext, archiveUrl);
+  if (!blockInfo || !blockInfo.text) {
+      console.warn("ABORT 2: State Machine failed to isolate a citation for:", archiveUrl);
+      return null;
+  }
+
+  const urlRegex = /\|\s*url\s*=\s*(https?:\/\/[^[\]|{}\s<>"]+)/i;
+  const match = urlRegex.exec(blockInfo.text);
+  
+  if (!match || !match[1]) {
+      console.warn("ABORT 3: Regex failed to find a valid |url= inside this block:", blockInfo.text);
+      return null;
+  }
+
+  if (match[1].match(/archive\.(today|is|ph|fo|li|vn|md)/i) || match[1].match(/web\.archive\.org/i)) {
+      console.warn("ABORT 4: The extracted URL was another archive link:", match[1]);
+      return null;
+  }
+
+  return match[1]; // Success!
+}
+
 /* ── API helpers ── */
-function extractOriginalUrl(a){try{const u=new URL(a),p=u.pathname+u.search,m=p.match(/\/((?:\d{8,14}\/)?)(https?:\/\/.+)/);return m?m[2]:null}catch{return null}}
+function extractOriginalUrlOrignal(archiveUrl, wikitext) {
+  // 1. Direct URL extraction (Catches standard long timestamps instantly)
+  try {
+    const u = new URL(archiveUrl), p = u.pathname + u.search;
+    const m = p.match(/\/((?:\d{8,14}\/)?)(https?:\/\/.+)/);
+    if (m && m[2]) return m[2];
+  } catch(e) {}
+
+  // 2. Wikitext extraction using State Machine (The Short Hash Fix)
+  // If wikitext isn't passed, gracefully fall back to returning null
+  if (!wikitext) return null;
+
+  const blockInfo = extractCitationBlock(wikitext, archiveUrl);
+  if (!blockInfo || !blockInfo.text) return null;
+
+  // Now safely search ONLY inside the isolated citation block
+  const urlRegex = /\|\s*url\s*=\s*(https?:\/\/[^[\]|{}\s<>"]+)/i;
+  const match = urlRegex.exec(blockInfo.text);
+  
+  if (match && match[1]) {
+     if (match[1].match(/archive\.(today|is|ph|fo|li|vn|md)/i)) return null;
+     if (match[1].match(/web\.archive\.org/i)) return null;
+     return match[1];
+  }
+  return null;
+}
+
+
 async function checkWayback(o,retries=3){
   for(let attempt=0;attempt<=retries;attempt++){
     try{
@@ -65,12 +126,151 @@ async function checkWayback(o,retries=3){
 async function fetchWikitext(t){const r=await fetch(`https://${LANG}.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(t)}&prop=wikitext&format=json&origin=*`);if(!r.ok)throw new Error(`API ${r.status}`);const d=await r.json();if(d.error)throw new Error(d.error.info);return d.parse.wikitext["*"]}
 async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";const rndTs=new Date(Date.now()-Math.random()*(Date.now()-new Date("2003-01-01").getTime())).toISOString();const sortParam=`&cmsort=timestamp&cmstart=${rndTs}`;do{const u=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(prefix)}&cmlimit=50&cmtype=page&cmnamespace=0&format=json&origin=*${sortParam}${cm?`&cmcontinue=${cm}`:""}`;const r=await fetch(u);const d=await r.json();if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||""}while(cm&&a.length<limit);if(a.length<limit){let cm2="";do{const u2=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(prefix)}&cmlimit=50&cmtype=page&cmnamespace=0&format=json&origin=*&cmsort=timestamp&cmstart=2001-01-01T00:00:00Z&cmend=${rndTs}${cm2?`&cmcontinue=${cm2}`:""}`;const r2=await fetch(u2);const d2=await r2.json();if(d2.query?.categorymembers)a.push(...d2.query.categorymembers.filter(m=>!a.includes(m.title)).map(m=>m.title));cm2=d2.continue?.cmcontinue||""}while(cm2&&a.length<limit)}for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,limit)}
 
+/* ── Smart Citation Extractor (State Machine) ── */
+function extractCitationBlock(wikitext, targetUrl) {
+  const idx = wikitext.indexOf(targetUrl);
+  if (idx === -1) return { start: -1, end: -1, text: null };
+
+  // 1. Walk backward to find the start of the citation template
+  let startIdx = idx;
+  let foundStart = false;
+  while (startIdx >= 0 && (idx - startIdx) < 1500) {
+    if (wikitext.substring(startIdx, startIdx + 2) === '{{') {
+      const prefix = wikitext.substring(startIdx, startIdx + 12).toLowerCase();
+      if (prefix.includes('cite') || prefix.includes('vcite') || prefix.includes('citation')) {
+         foundStart = true;
+         break;
+      }
+    }
+    startIdx--;
+  }
+  if (!foundStart) return { start: -1, end: -1, text: null };
+
+  // 2. Walk forward to find the exact end boundary
+  let depth = 0;
+  let endIdx = startIdx;
+  const staticLimit = 4000;
+
+  while (endIdx < wikitext.length) {
+     if (endIdx - startIdx > staticLimit) return { start: -1, end: -1, text: null };
+     if (wikitext.substring(endIdx, endIdx + 2) === '\n\n' || wikitext.substring(endIdx, endIdx + 3) === '\n==') {
+         return { start: -1, end: -1, text: null };
+     }
+     
+     if (wikitext.substring(endIdx, endIdx + 2) === '{{') {
+         depth++;
+         if (depth > 10) return { start: -1, end: -1, text: null }; // 10-level abort
+         endIdx += 2;
+         continue;
+     }
+     if (wikitext.substring(endIdx, endIdx + 2) === '}}') {
+         depth--;
+         endIdx += 2;
+         // When depth hits 0, we have perfectly isolated the citation
+         if (depth === 0) {
+             return { start: startIdx, end: endIdx, text: wikitext.substring(startIdx, endIdx) };
+         }
+         continue;
+     }
+     endIdx++;
+  }
+  return { start: -1, end: -1, text: null };
+}
+
 /* ── Extract date from Wayback URL ── */
 function extractWaybackDate(waybackUrl){
   if(!waybackUrl)return null;
   const m=waybackUrl.match(/\/web\/(\d{4})(\d{2})(\d{2})\d*/);
   if(!m)return null;
   return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+
+/* ── Mass Edit Logic (Hidden POST Form) ── */
+const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function executeMassEdit(title, originalWikitext, selectedLinks) {
+  let newText = originalWikitext;
+  let replacedCount = 0;
+
+  selectedLinks.forEach(link => {
+    if (link.archiveUrl && link.waybackUrl) {
+      // Re-run the state machine on the LIVE newText, because previous replacements 
+      // will have shifted the string indexes.
+      const blockInfo = extractCitationBlock(newText, link.archiveUrl);
+      
+      if (blockInfo.text) {
+         let updatedBlock = blockInfo.text;
+         
+         // 1. Swap the URL safely inside the isolated block
+         updatedBlock = updatedBlock.split(link.archiveUrl).join(link.waybackUrl);
+         
+         // 2. Safely swap the date inside the isolated block
+         if (link.waybackDate) {
+             const dateRegex = /(\|\s*archive-date\s*=)[^|}]*/i;
+             if (dateRegex.test(updatedBlock)) {
+                 updatedBlock = updatedBlock.replace(dateRegex, `$1 ${link.waybackDate} `);
+             }
+         }
+         
+         // 3. Stitch the article back together
+         newText = newText.substring(0, blockInfo.start) + updatedBlock + newText.substring(blockInfo.end);
+         replacedCount++;
+      } else {
+         // Fallback: If it's just a bare URL outside a citation template, just swap the string.
+         newText = newText.split(link.archiveUrl).join(link.waybackUrl);
+         replacedCount++;
+      }
+    }
+  });
+
+  if (replacedCount === 0 || newText === originalWikitext) {
+    alert("No changes could be made.");
+    return;
+  }
+
+  const summary = `Replacing ${replacedCount} archive.today link${replacedCount > 1 ? 's' : ''} with Wayback Machine alternative${replacedCount > 1 ? 's' : ''} per [[WP:ATODAY]] (via [https://github.com/nethahussain/wikipedia-archive-today-detector AT Detector])`;
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = `https://en.wikipedia.org/w/index.php?title=${encodeURIComponent(title)}&action=submit`;
+  form.target = '_blank';
+
+  const tbInput = document.createElement('input');
+  tbInput.type = 'hidden';
+  tbInput.name = 'wpTextbox1';
+  tbInput.value = newText;
+  form.appendChild(tbInput);
+
+  const summaryInput = document.createElement('input');
+  summaryInput.type = 'hidden';
+  summaryInput.name = 'wpSummary';
+  summaryInput.value = summary;
+  form.appendChild(summaryInput);
+
+  const diffInput = document.createElement('input');
+  diffInput.type = 'hidden';
+  diffInput.name = 'wpDiff';
+  diffInput.value = 'Show changes';
+  form.appendChild(diffInput);
+
+  // --- NEW: Anti-truncation dummy field (Silences the server warning) ---
+  const ultimateInput = document.createElement('input');
+  ultimateInput.type = 'hidden';
+  ultimateInput.name = 'wpUltimateParam';
+  ultimateInput.value = '1';
+  form.appendChild(ultimateInput);
+
+  // --- NEW: Dummy edit token (Satisfies MW's preview security check) ---
+  const tokenInput = document.createElement('input');
+  tokenInput.type = 'hidden';
+  tokenInput.name = 'wpEditToken';
+  tokenInput.value = '+\\';
+  form.appendChild(tokenInput);
+
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
 }
 
 /* ── Wikipedia search suggestions ── */
@@ -213,11 +413,11 @@ function useScanEngine(){
     try{for(let ti=0;ti<titles.length;ti++){if(abort.current)break;const title=titles[ti];setProgress(`Scanning ${append?"(extended) ":""}${ti+1} of ${titles.length}: ${title}`);
       let wikitext;try{wikitext=await fetchWikitext(title)}catch(e){setResults(p=>[...p,{title,links:[],error:e.message}]);continue}
       const matches=[...new Set((wikitext.match(AT_RE)||[]).map(u=>u.replace(/[\]|}<>]+$/,"")))];
-      const links=matches.map(url=>({archiveUrl:url,originalUrl:extractOriginalUrl(url),waybackUrl:null,status:"pending"}));
+      const links=matches.map(url=>({archiveUrl:url,originalUrl:extractOriginalUrl(url, wikitext),waybackUrl:null,waybackDate:null,status:"pending"}));      
       if(links.length>0){newHits++;affectedCount.current++}
-      const artResult={title,links:[...links]};setResults(p=>[...p,artResult]);
+      const artResult={title,wikitext,links:[...links]};setResults(p=>[...p,artResult]);
       for(let li=0;li<links.length;li++){if(abort.current)break;const lk=links[li];
-        if(lk.originalUrl){setProgress(`Scanning ${append?"(extended) ":""}${ti+1} of ${titles.length}: ${title} — Wayback (${li+1}/${links.length})`);const wb=await checkWayback(lk.originalUrl);lk.waybackUrl=wb;lk.status=wb?"found":"notfound"}else{lk.status="noextract"}
+        if(lk.originalUrl){setProgress(`Scanning ${append?"(extended) ":""}${ti+1} of ${titles.length}: ${title} — Wayback (${li+1}/${links.length})`);const wb=await checkWayback(lk.originalUrl);lk.waybackUrl=wb;lk.waybackDate=extractWaybackDate(wb);lk.status=wb?"found":"notfound"}else{lk.status="noextract"}
         setResults(p=>{const u=[...p];const idx=u.findIndex(r=>r.title===title);if(idx!==-1)u[idx]={...artResult,links:[...links]};return u});await new Promise(r=>setTimeout(r,300))}
       links.forEach(l=>{if(l.status==="pending")l.status="noextract"});
       setResults(p=>{const u=[...p];const idx=u.findIndex(r=>r.title===title);if(idx!==-1)u[idx]={...artResult,links:[...links]};return u})
@@ -230,6 +430,9 @@ function useScanEngine(){
 /* ── Results View ── */
 function ResultsView({results,done,showOnlyAffected=false}){
   const[filter,setFilter]=useState("all");
+  // State stages: 0 = locked, 1 = counting down, 2 = ready, 3 = added to queue
+  const[linkStates,setLinkStates]=useState({});
+  
   if(!results.length&&done)return<div style={{textAlign:"center",color:C.muted,padding:48,fontSize:14}}>No results found.</div>;
   if(!results.length)return null;
   const affected=results.filter(r=>r.links.length>0),clean=results.filter(r=>r.links.length===0);
@@ -239,41 +442,57 @@ function ResultsView({results,done,showOnlyAffected=false}){
   const pending=results.reduce((s,r)=>s+r.links.filter(l=>l.status==="pending").length,0);
   const display=showOnlyAffected?(filter==="clean"?clean:affected):filter==="affected"?affected:filter==="clean"?clean:results;
 
+  // 5-Second Countdown Logic
+  const handleVerifyClick=(id)=>{
+    setLinkStates(p=>{
+      if(p[id] && p[id].stage > 0) return p; 
+      
+      let ticks = 5;
+      const iv = setInterval(()=>{
+        ticks--;
+        if(ticks <= 0){
+          clearInterval(iv);
+          setLinkStates(prev=>({...prev, [id]: {...prev[id], stage: 2}})); 
+        } else {
+          setLinkStates(prev=>({...prev, [id]: {...prev[id], stage: 1, timer: ticks}})); 
+        }
+      }, 1000);
+      
+      return {...p, [id]: {...p[id], stage: 1, timer: 5}}; 
+    });
+  };
+
+  const toggleQueue=(id)=>{
+    setLinkStates(p=>({...p,[id]:{...p[id],stage:p[id].stage===2?3:2}}));
+  };
+
   return(
     <div style={{animation:"_fadeIn .3s ease"}}>
-      {/* HOW TO FIX GUIDE */}
       {withAlts>0&&(
         <div style={{background:C.blueSoft,border:`1px solid ${C.blueBorder}`,borderRadius:C.radius,padding:"16px 20px",marginBottom:16}}>
-          <div style={{fontWeight:700,marginBottom:8,display:"flex",alignItems:"center",gap:6,fontSize:13,color:C.blue}}><EditIcon/> How to fix articles</div>
+          <div style={{fontWeight:700,marginBottom:8,display:"flex",alignItems:"center",gap:6,fontSize:13,color:C.blue}}><EditIcon/> How to fix articles (Assisted Validation)</div>
           <div style={{color:C.textSec,fontSize:12,lineHeight:1.8}}>
-            <strong>1.</strong> Click <strong style={{color:C.accent}}>Fix on Wikipedia</strong> to open the article editor with a pre-filled edit summary.<br/>
-            <strong>2.</strong> In the editor toolbar, click <strong>Advanced</strong> → then click the <strong>Search and replace</strong> button (magnifying glass icon). On Windows/Linux you can also try <strong>Ctrl+H</strong>.<br/>
-            <strong>3.</strong> Click <strong>Copy old URL</strong> and paste into the "Find" field.<br/>
-            <strong>4.</strong> Click <strong>Copy new URL</strong> and paste into the "Replace" field. Hit Replace.<br/>
-            <strong>5.</strong> Click <strong>Copy date</strong> and update the <code style={{fontSize:11,fontFamily:C.mono,background:"rgba(59,107,165,0.08)",padding:"1px 4px",borderRadius:3}}>|archive-date=</code> parameter in the citation template to match the Wayback snapshot date.<br/>
-            <strong>6.</strong> Repeat for each link, review your changes, then click <strong>Publish changes</strong>.
+            <strong>1.</strong> Click the green <strong>Wayback Machine</strong> links to verify the snapshot. Wait 5 seconds.<br/>
+            <strong>2.</strong> Click the blue <strong>Verified</strong> button to stage your fix.<br/>
+            <strong>3.</strong> Click <strong style={{color:C.accent}}>Push Verified Archives to Wikipedia</strong> to open the editor with your verified changes pre-applied.
           </div>
         </div>
       )}
 
-      {/* WAYBACK 503 NOTICE — shown when alternatives found */}
       {withAlts>0&&<WaybackNotice/>}
 
-      {/* STATS */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(110px, 1fr))",gap:10,marginBottom:24}}>
         <Stat value={results.length} label="Scanned" variant="muted"/><Stat value={affected.length} label="Affected" variant="red"/>
         <Stat value={totalLinks} label="AT Links" variant="amber"/><Stat value={withAlts} label="Alternatives" variant="green"/>
         <Stat value={noAlts} label="No Alt" variant="red"/>{pending>0&&<Stat value={pending} label="Pending" variant="amber"/>}
       </div>
 
-      {/* FILTERS */}
       <div style={{display:"flex",gap:6,marginBottom:18}}>
         {[{v:"all",l:showOnlyAffected?`Affected (${affected.length})`:`All (${results.length})`},...(!showOnlyAffected?[{v:"affected",l:`Affected (${affected.length})`}]:[]),{v:"clean",l:`Clean (${clean.length})`}].map(f=>
           <button key={f.v} onClick={()=>setFilter(f.v)} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter===f.v?C.accent:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter===f.v?C.accentSoft:C.card,color:filter===f.v?C.accent:C.muted}}>{f.l}</button>
         )}
       </div>
 
-      {/* ARTICLE CARDS */}
       {display.map((art,i)=>(
         <div key={art.title+i} style={{background:C.card,borderRadius:C.radius,padding:"20px 22px",marginBottom:14,border:`1px solid ${C.cardBorder}`,boxShadow:C.shadow,animation:"_fadeIn .25s ease"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
@@ -283,59 +502,130 @@ function ResultsView({results,done,showOnlyAffected=false}){
               {art.title}
             </a>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-              {art.links.length>0?(<React.Fragment><Pill variant="red">{art.links.length} archive.today</Pill>{art.links.filter(l=>l.waybackUrl).length>0&&<Pill variant="green">{art.links.filter(l=>l.waybackUrl).length} alt{art.links.filter(l=>l.waybackUrl).length>1?"s":""}</Pill>}</React.Fragment>):(<Pill variant="green">Clean</Pill>)}
+              {art.error?(<Pill variant="red">API Error: {art.error}</Pill>):art.links.length>0?(<React.Fragment><Pill variant="red">{art.links.length} archive.today</Pill>{art.links.filter(l=>l.waybackUrl).length>0&&<Pill variant="green">{art.links.filter(l=>l.waybackUrl).length} alt{art.links.filter(l=>l.waybackUrl).length>1?"s":""}</Pill>}</React.Fragment>):(<Pill variant="green">Clean</Pill>)}
             </div>
           </div>
 
-          {art.links.length>0&&(
+          {art.links.filter(l=>l.waybackUrl).length>0&&(
             <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-              <a href={buildEditUrl(art.title,art.links)} target="_blank" rel="noopener noreferrer"
+              <button onClick={()=>{
+                // Inject the user's custom URL/Date if they edited it
+                const linksToFix = art.links.filter(l => {
+                    const id = `${art.title}|${l.archiveUrl}`;
+                    return l.waybackUrl && linkStates[id]?.stage === 3;
+                }).map(l => {
+                    const id = `${art.title}|${l.archiveUrl}`;
+                    const st = linkStates[id] || {};
+                    return {
+                        ...l,
+                        waybackUrl: st.customUrl || l.waybackUrl,
+                        waybackDate: st.customUrl ? st.customDate : l.waybackDate
+                    };
+                });
+                executeMassEdit(art.title, art.wikitext, linksToFix);
+              }}
                 onMouseEnter={e=>e.currentTarget.style.background=C.accentHover} onMouseLeave={e=>e.currentTarget.style.background=C.accent}
-                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:C.radiusSm,border:"none",background:C.accent,color:"#fff",fontSize:13,fontWeight:600,textDecoration:"none",fontFamily:C.sans,boxShadow:C.shadow}}>
-                <EditIcon/> Fix on Wikipedia
-              </a>
-              <span style={{fontSize:11,color:C.mutedLight}}>Opens editor with pre-filled edit summary</span>
+                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:C.radiusSm,border:"none",background:C.accent,color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:C.sans,boxShadow:C.shadow}}>
+                <EditIcon/> Push Verified Archives to Wikipedia
+              </button>
+              <span style={{fontSize:11,color:C.mutedLight}}>Opens editor with pre-applied fixes</span>
             </div>
           )}
 
           {art.links.length>0&&(
             <div style={{marginTop:14}}>
-              {art.links.map((lk,li)=>(
+              {art.links.map((lk,li)=>{
+                const id=`${art.title}|${lk.archiveUrl}`;
+                const lState = linkStates[id]||{stage:0};
+                const displayUrl = lState.customUrl || lk.waybackUrl;
+                const displayDate = lState.customUrl ? lState.customDate : lk.waybackDate;
+
+                return(
                 <div key={li} style={{background:C.bgAlt,borderRadius:C.radiusSm,padding:"14px 16px",marginBottom:8,borderLeft:`3px solid ${lk.waybackUrl?C.green:lk.status==="pending"?C.amber:C.red}`}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:6}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:10,color:C.muted,fontFamily:C.mono,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:500}}>Archive.today link #{li+1}</div>
-                      <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                        <a href={lk.archiveUrl} target="_blank" rel="noopener noreferrer" style={{color:C.red,fontSize:12,wordBreak:"break-all",fontFamily:C.mono,fontWeight:500}}>{lk.archiveUrl}</a>
-                        <CopyButton text={lk.archiveUrl} label="Copy old URL"/>
+                    <div style={{flex:1,minWidth:0,display:"flex",gap:12,alignItems:"flex-start"}}>
+                      {lk.waybackUrl && (
+                        <div style={{marginTop: 4}}>
+                          <button 
+                            title="Verify new archive URL before selecting"
+                            disabled={lState.stage < 2}
+                            onClick={()=>toggleQueue(id)}
+                            style={{
+                              padding: "8px 14px",
+                              borderRadius: "6px",
+                              fontWeight: "bold",
+                              fontSize: "12px",
+                              cursor: lState.stage < 2 ? "not-allowed" : "pointer",
+                              border: "none",
+                              transition: "all 0.1s ease",
+                              background: lState.stage === 0 ? "#e2e8f0" : lState.stage === 1 ? "#fef08a" : lState.stage === 2 ? C.accent : C.green,
+                              color: lState.stage === 0 ? "#94a3b8" : lState.stage === 1 ? "#854d0e" : "#fff",
+                              boxShadow: lState.stage === 2 ? `0 4px 0 ${C.accentHover}` : lState.stage === 3 ? "0 0px 0 transparent" : "none",
+                              transform: lState.stage === 3 ? "translateY(4px)" : "translateY(0)"
+                            }}>
+                            {lState.stage === 0 ? "Verified?" : lState.stage === 1 ? `Wait ${lState.timer}s...` : lState.stage === 2 ? "Verified?" : "Verified ✓"}
+                          </button>
+                        </div>
+                      )}
+                      <div>
+                        <div style={{fontSize:10,color:C.muted,fontFamily:C.mono,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em",fontWeight:500}}>Archive.today link #{li+1}</div>
+                        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                          <a href={lk.archiveUrl} target="_blank" rel="noopener noreferrer" style={{color:C.red,fontSize:12,wordBreak:"break-all",fontFamily:C.mono,fontWeight:500, textDecoration: lState.stage === 3 ? "line-through" : "none"}}>{lk.archiveUrl}</a>
+                          <CopyButton text={lk.archiveUrl} label="Copy old URL"/>
+                        </div>
+                        {lk.originalUrl&&(<div style={{marginTop:6}}><span style={{color:C.mutedLight,fontSize:10,fontFamily:C.mono}}>Original → </span><a href={lk.originalUrl} target="_blank" rel="noopener noreferrer" style={{color:C.muted,fontSize:11,wordBreak:"break-all",fontFamily:C.mono}}>{lk.originalUrl}</a></div>)}
                       </div>
-                      {lk.originalUrl&&(<div style={{marginTop:6}}><span style={{color:C.mutedLight,fontSize:10,fontFamily:C.mono}}>Original → </span><a href={lk.originalUrl} target="_blank" rel="noopener noreferrer" style={{color:C.muted,fontSize:11,wordBreak:"break-all",fontFamily:C.mono}}>{lk.originalUrl}</a></div>)}
                     </div>
                     {lk.status==="pending"?<Pill variant="amber">Pending</Pill>:lk.status==="found"?<Pill variant="green">Alt found</Pill>:lk.status==="notfound"?<Pill variant="red">No alt</Pill>:<Pill variant="muted">Can't extract</Pill>}
                   </div>
                   {lk.waybackUrl&&(
-                    <div style={{marginTop:10,padding:"10px 14px",background:C.greenSoft,borderRadius:C.radiusSm,border:`1px solid ${C.greenBorder}`}}>
+                    <div style={{marginTop:10,padding:"10px 14px",background:C.greenSoft,borderRadius:C.radiusSm,border:`1px solid ${C.greenBorder}`,opacity:lState.stage === 3?0.5:1,transition:"opacity 0.2s"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:6}}>
                         <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:10,color:C.green,fontWeight:600,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em"}}>Wayback Machine alternative</div>
-                          <a href={lk.waybackUrl} target="_blank" rel="noopener noreferrer" style={{color:C.green,fontSize:12,wordBreak:"break-all",fontFamily:C.mono,fontWeight:500}}>{lk.waybackUrl}</a>
+                          <div style={{fontSize:10,color:C.green,fontWeight:600,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.04em"}}>
+                            Wayback Machine alternative
+                            {!lState.editMode && lState.stage !== 3 && (
+                                <span onClick={()=>setLinkStates(p=>({...p, [id]: {...p[id], editMode:true}}))} style={{cursor:"pointer", marginLeft:8, fontSize:10, color:C.accent, textTransform:"none"}}>✏️ Edit</span>
+                            )}
+                          </div>
+                          
+                          {lState.editMode ? (
+                             <div style={{display:"flex", gap:6, marginTop:4, alignItems:"center"}}>
+                               <input id={`edit-${li}`} type="text" defaultValue={displayUrl} style={{flex:1, padding:"4px 8px", fontSize:12, borderRadius:4, border:`1px solid ${C.greenBorder}`}} />
+                               <button onClick={()=>{
+                                   const val = document.getElementById(`edit-${li}`).value.trim();
+                                   let newDate = null;
+                                   const dMatch = val.match(/\/web\/(\d{14})/);
+                                   if(dMatch) {
+                                       const d = dMatch[1];
+                                       newDate = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)}`;
+                                   }
+                                   // Reset stage to 0 to force re-verification of the new URL
+                                   setLinkStates(p=>({...p, [id]: {...p[id], editMode:false, customUrl:val, customDate:newDate, stage:0}}));
+                               }} style={{padding:"4px 8px", background:C.accent, color:"#fff", border:"none", borderRadius:4, cursor:"pointer", fontSize:11, fontWeight:"bold"}}>Save</button>
+                               <button onClick={()=>setLinkStates(p=>({...p, [id]: {...p[id], editMode:false}}))} style={{padding:"4px 8px", background:"transparent", color:C.muted, border:"none", cursor:"pointer", fontSize:11}}>Cancel</button>
+                             </div>
+                          ) : (
+                             <a href={displayUrl} target="_blank" rel="noopener noreferrer" onClick={()=>handleVerifyClick(id)} style={{color:C.green,fontSize:12,wordBreak:"break-all",fontFamily:C.mono,fontWeight:500}} title="Click to open and verify this snapshot">{displayUrl}</a>
+                          )}
+
                         </div>
-                        <CopyButton text={lk.waybackUrl} label="Copy new URL" variant="green"/>
+                        <CopyButton text={displayUrl} label="Copy new URL" variant="green"/>
                       </div>
-                      {extractWaybackDate(lk.waybackUrl)&&(
+                      {displayDate&&(
                         <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.greenBorder}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:6}}>
                           <div>
                             <span style={{fontSize:10,color:C.green,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Archive-date → </span>
-                            <code style={{fontSize:12,color:C.green,fontFamily:C.mono,fontWeight:600,background:"rgba(46,125,91,0.1)",padding:"2px 6px",borderRadius:4}}>{extractWaybackDate(lk.waybackUrl)}</code>
-                            <span style={{fontSize:10,color:C.muted,marginLeft:6}}>Use in <code style={{fontSize:10,fontFamily:C.mono}}>|archive-date=</code></span>
+                            <code style={{fontSize:12,color:C.green,fontFamily:C.mono,fontWeight:600,background:"rgba(46,125,91,0.1)",padding:"2px 6px",borderRadius:4}}>{displayDate}</code>
+                            <span style={{fontSize:10,color:C.muted,marginLeft:6}}>Will map to <code style={{fontSize:10,fontFamily:C.mono}}>|archive-date=</code></span>
                           </div>
-                          <CopyButton text={extractWaybackDate(lk.waybackUrl)} label="Copy date" variant="green"/>
+                          <CopyButton text={displayDate} label="Copy date" variant="green"/>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
