@@ -205,11 +205,23 @@ function executeMassEdit(title, originalWikitext, selectedLinks) {
          // 1. Swap the URL safely inside the isolated block
          updatedBlock = updatedBlock.split(link.archiveUrl).join(link.waybackUrl);
          
-         // 2. Safely swap the date inside the isolated block
+         // 2. Update or insert archive-date inside the isolated block
+         //    Handles both |archive-date= and |archivedate= (alias)
          if (link.waybackDate) {
-             const dateRegex = /(\|\s*archive-date\s*=)[^|}]*/i;
+             const dateRegex = /(\|\s*archive-?date\s*=)[^|}]*/i;
+
              if (dateRegex.test(updatedBlock)) {
-                 updatedBlock = updatedBlock.replace(dateRegex, `$1 ${link.waybackDate} `);
+                 // Date parameter exists — update its value
+                 updatedBlock = updatedBlock.replace(dateRegex, `$1 ${link.waybackDate}`);
+             } else {
+                 // Date parameter missing — insert after |archive-url= or |archiveurl=
+                 const afterArchiveUrl = /(\|\s*archive-?url\s*=[^|}]*)/i;
+                 if (afterArchiveUrl.test(updatedBlock)) {
+                     updatedBlock = updatedBlock.replace(
+                         afterArchiveUrl,
+                         `$1 |archive-date=${link.waybackDate}`
+                     );
+                 }
              }
          }
          
@@ -620,6 +632,24 @@ function ResultsView({results,done,showOnlyAffected=false}){
                             <span style={{fontSize:10,color:C.muted,marginLeft:6}}>Will map to <code style={{fontSize:10,fontFamily:C.mono}}>|archive-date=</code></span>
                           </div>
                           <CopyButton text={displayDate} label="Copy date" variant="green"/>
+                        </div>
+                      )}
+                      {lState.stage === 3 && (
+                        <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.greenBorder}`}}>
+                          <button onClick={()=>{
+                            const st = linkStates[id] || {};
+                            const singleLink = [{
+                              ...lk,
+                              waybackUrl: st.customUrl || lk.waybackUrl,
+                              waybackDate: st.customUrl ? st.customDate : lk.waybackDate
+                            }];
+                            executeMassEdit(art.title, art.wikitext, singleLink);
+                          }}
+                            onMouseEnter={e=>e.currentTarget.style.background=C.accentHover}
+                            onMouseLeave={e=>e.currentTarget.style.background=C.accent}
+                            style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:C.radiusSm,border:"none",background:C.accent,color:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:C.sans}}>
+                            <EditIcon/> Fix this link on Wikipedia
+                          </button>
                         </div>
                       )}
                     </div>
