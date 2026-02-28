@@ -29,21 +29,21 @@ const{useState,useCallback,useRef,useEffect}=React;
 const AT_DOMAINS=["archive.today","archive.ph","archive.is","archive.fo","archive.li","archive.vn","archive.md"];
 const AT_RE=new RegExp(`https?:\\/\\/(?:${AT_DOMAINS.map(d=>d.replace(/\./g,"\\.")).join("|")})\\/[^\\s\\]|}<>"]*`,"gi");
 const TOPICS=[
-{id:"medicine",label:"Medicine",icon:"🩺",cats:["Category:Medicine","Category:Diseases and disorders","Category:Medical treatments","Category:Drugs","Category:Epidemiology","Category:Pathology","Category:Medical specialties","Category:Public health","Category:Radiology","Category:Surgery","Category:Pharmacology","Category:Vaccines"]},
-{id:"biology",label:"Biology",icon:"🧬",cats:["Category:Biology","Category:Genetics","Category:Molecular biology","Category:Microbiology","Category:Ecology","Category:Botany","Category:Zoology"]},
-{id:"physics",label:"Physics",icon:"⚛️",cats:["Category:Physics","Category:Quantum mechanics","Category:Astrophysics","Category:Particle physics","Category:Nuclear physics"]},
-{id:"chemistry",label:"Chemistry",icon:"🧪",cats:["Category:Chemistry","Category:Chemical elements","Category:Organic chemistry","Category:Biochemistry","Category:Chemical compounds"]},
-{id:"cs",label:"Computer Science",icon:"💻",cats:["Category:Computer science","Category:Artificial intelligence","Category:Machine learning","Category:Programming languages","Category:Cryptography","Category:Software","Category:Algorithms"]},
-{id:"history",label:"History",icon:"📜",cats:["Category:History","Category:Ancient history","Category:Medieval history","Category:Modern history","Category:World War II","Category:World War I","Category:History of science","Category:Historiography"]},
-{id:"politics",label:"Politics",icon:"🏛️",cats:["Category:Politics","Category:Elections","Category:Political parties","Category:Heads of state","Category:International relations","Category:Diplomacy"]},
-{id:"geography",label:"Geography",icon:"🌍",cats:["Category:Geography","Category:Countries","Category:Cities","Category:Islands","Category:Rivers","Category:Mountains"]},
-{id:"law",label:"Law",icon:"⚖️",cats:["Category:Law","Category:Criminal law","Category:International law","Category:Human rights","Category:Supreme Court of the United States"]},
-{id:"economics",label:"Economics",icon:"📊",cats:["Category:Economics","Category:Macroeconomics","Category:Microeconomics","Category:Finance","Category:Monetary policy","Category:International trade"]},
-{id:"engineering",label:"Engineering",icon:"🔧",cats:["Category:Engineering","Category:Electrical engineering","Category:Civil engineering","Category:Mechanical engineering","Category:Aerospace engineering"]},
-{id:"media",label:"Media & Journalism",icon:"📰",cats:["Category:Mass media","Category:Journalism","Category:Newspapers","Category:Television","Category:Radio","Category:Podcasts"]},
-{id:"environment",label:"Environment",icon:"🌱",cats:["Category:Environmentalism","Category:Climate change","Category:Pollution","Category:Conservation","Category:Renewable energy","Category:Sustainability"]},
-{id:"education",label:"Education",icon:"🎓",cats:["Category:Education","Category:Universities and colleges","Category:Schools","Category:Educational technology","Category:Academic disciplines"]},
-{id:"sports",label:"Sports",icon:"⚽",cats:["Category:Sports","Category:Olympic Games","Category:Football","Category:Cricket","Category:Basketball","Category:Tennis"]},
+{id:"medicine",label:"Medicine",icon:"🩺",cats:["Category:Medicine","Category:Diseases and disorders","Category:Medical treatments","Category:Drugs","Category:Epidemiology","Category:Pathology","Category:Medical specialties","Category:Public health","Category:Radiology","Category:Surgery","Category:Pharmacology","Category:Vaccines","Category:Cardiology","Category:Oncology","Category:Neurology","Category:Pediatrics","Category:Psychiatry","Category:Obstetrics","Category:Gynecology","Category:Dermatology","Category:Ophthalmology","Category:Emergency medicine","Category:Infectious diseases","Category:Gastroenterology","Category:Endocrinology","Category:Nephrology","Category:Pulmonology","Category:Hematology","Category:Rheumatology","Category:Urology","Category:Orthopedic surgery","Category:Anesthesiology","Category:Geriatrics","Category:Immunology","Category:Tropical diseases","Category:Palliative care","Category:Medical genetics","Category:Health informatics"]},
+{id:"biology",label:"Biology",icon:"🧬",cats:["Category:Biology","Category:Genetics","Category:Molecular biology","Category:Microbiology","Category:Ecology","Category:Botany","Category:Zoology","Category:Cell biology","Category:Evolutionary biology","Category:Marine biology","Category:Neuroscience","Category:Developmental biology","Category:Biochemistry","Category:Biophysics","Category:Taxonomy (biology)","Category:Mycology","Category:Virology","Category:Parasitology","Category:Ethology","Category:Conservation biology","Category:Entomology","Category:Ornithology","Category:Mammals","Category:Reptiles","Category:Amphibians","Category:Fish","Category:Plants","Category:Fungi","Category:Bacteria","Category:Paleontology"]},
+{id:"physics",label:"Physics",icon:"⚛️",cats:["Category:Physics","Category:Quantum mechanics","Category:Astrophysics","Category:Particle physics","Category:Nuclear physics","Category:Condensed matter physics","Category:Thermodynamics","Category:Optics","Category:Electromagnetism","Category:Classical mechanics","Category:Relativity","Category:Cosmology","Category:Plasma physics","Category:Acoustics","Category:Fluid dynamics","Category:Solid-state physics","Category:Atomic physics","Category:Physical constants","Category:Physics experiments","Category:Physicists"]},
+{id:"chemistry",label:"Chemistry",icon:"🧪",cats:["Category:Chemistry","Category:Chemical elements","Category:Organic chemistry","Category:Biochemistry","Category:Chemical compounds","Category:Inorganic chemistry","Category:Physical chemistry","Category:Analytical chemistry","Category:Polymer chemistry","Category:Medicinal chemistry","Category:Environmental chemistry","Category:Electrochemistry","Category:Nuclear chemistry","Category:Chemical reactions","Category:Chemical processes","Category:Materials science","Category:Nanotechnology","Category:Crystallography","Category:Chemists","Category:Chemical engineering"]},
+{id:"cs",label:"Computer Science",icon:"💻",cats:["Category:Computer science","Category:Artificial intelligence","Category:Machine learning","Category:Programming languages","Category:Cryptography","Category:Software","Category:Algorithms","Category:Data structures","Category:Computer networking","Category:Computer security","Category:Databases","Category:Operating systems","Category:Computer architecture","Category:Distributed computing","Category:Computer graphics","Category:Natural language processing","Category:Robotics","Category:Information theory","Category:Computational complexity theory","Category:Computer vision","Category:Human–computer interaction","Category:Software engineering","Category:Web development","Category:Cloud computing","Category:Internet","Category:Computer hardware"]},
+{id:"history",label:"History",icon:"📜",cats:["Category:History","Category:Ancient history","Category:Medieval history","Category:Modern history","Category:World War II","Category:World War I","Category:History of science","Category:Historiography","Category:Military history","Category:History of Asia","Category:History of Europe","Category:History of Africa","Category:History of the Americas","Category:Cold War","Category:Colonialism","Category:Decolonization","Category:Revolutions","Category:History of religion","Category:Industrial Revolution","Category:Ancient Rome","Category:Ancient Greece","Category:Byzantine Empire","Category:Ottoman Empire","Category:British Empire","Category:Mongol Empire","Category:History of China","Category:History of India","Category:History of the Middle East","Category:Archaeological sites","Category:Historical documents"]},
+{id:"politics",label:"Politics",icon:"🏛️",cats:["Category:Politics","Category:Elections","Category:Political parties","Category:Heads of state","Category:International relations","Category:Diplomacy","Category:Democracy","Category:Political ideologies","Category:Political movements","Category:Legislatures","Category:Political scandals","Category:Constitutions","Category:Political campaigns","Category:Referendums","Category:Government agencies","Category:United Nations","Category:European Union","Category:NATO","Category:Geopolitics","Category:Civil rights movements","Category:Political philosophy","Category:Nationalism","Category:Socialism","Category:Conservatism","Category:Liberalism","Category:Anarchism","Category:Terrorism","Category:Espionage","Category:Intelligence agencies"]},
+{id:"geography",label:"Geography",icon:"🌍",cats:["Category:Geography","Category:Countries","Category:Cities","Category:Islands","Category:Rivers","Category:Mountains","Category:Deserts","Category:Oceans","Category:Lakes","Category:Continents","Category:Capitals","Category:Peninsulas","Category:Valleys","Category:Glaciers","Category:Volcanoes","Category:Earthquakes","Category:National parks","Category:Forests","Category:Wetlands","Category:Caves","Category:Archipelagoes","Category:Straits","Category:Bays","Category:Capes","Category:Plateaus","Category:Plains","Category:UNESCO World Heritage Sites"]},
+{id:"law",label:"Law",icon:"⚖️",cats:["Category:Law","Category:Criminal law","Category:International law","Category:Human rights","Category:Supreme Court of the United States","Category:Constitutional law","Category:Contract law","Category:Property law","Category:Family law","Category:Labour law","Category:Tax law","Category:Environmental law","Category:Intellectual property law","Category:Tort law","Category:Evidence law","Category:War crimes","Category:Genocide","Category:International criminal law","Category:Legal history","Category:Legal systems","Category:Judges","Category:Courts","Category:Law enforcement","Category:Prisons","Category:Capital punishment","Category:Civil liberties"]},
+{id:"economics",label:"Economics",icon:"📊",cats:["Category:Economics","Category:Macroeconomics","Category:Microeconomics","Category:Finance","Category:Monetary policy","Category:International trade","Category:Banking","Category:Stock exchanges","Category:Currencies","Category:Economic history","Category:Economic systems","Category:Capitalism","Category:Market economy","Category:Economic inequality","Category:Poverty","Category:Inflation","Category:Unemployment","Category:Central banks","Category:Taxation","Category:Investment","Category:Corporations","Category:Economic crises","Category:Financial crises","Category:Cryptocurrency","Category:Development economics"]},
+{id:"engineering",label:"Engineering",icon:"🔧",cats:["Category:Engineering","Category:Electrical engineering","Category:Civil engineering","Category:Mechanical engineering","Category:Aerospace engineering","Category:Chemical engineering","Category:Biomedical engineering","Category:Environmental engineering","Category:Nuclear engineering","Category:Structural engineering","Category:Transportation engineering","Category:Mining engineering","Category:Petroleum engineering","Category:Telecommunications engineering","Category:Industrial engineering","Category:Systems engineering","Category:Bridges","Category:Dams","Category:Tunnels","Category:Skyscrapers","Category:Power stations","Category:Spacecraft","Category:Aircraft","Category:Ships","Category:Automobiles","Category:Trains"]},
+{id:"media",label:"Media & Journalism",icon:"📰",cats:["Category:Mass media","Category:Journalism","Category:Newspapers","Category:Television","Category:Radio","Category:Podcasts","Category:Magazines","Category:News agencies","Category:Broadcasting","Category:Advertising","Category:Public relations","Category:Film","Category:Documentary films","Category:Photography","Category:Publishing","Category:Censorship","Category:Freedom of the press","Category:Media companies","Category:Television networks","Category:Radio stations","Category:Social media","Category:Internet media","Category:Journalists","Category:Film directors","Category:Animation"]},
+{id:"environment",label:"Environment",icon:"🌱",cats:["Category:Environmentalism","Category:Climate change","Category:Pollution","Category:Conservation","Category:Renewable energy","Category:Sustainability","Category:Biodiversity","Category:Deforestation","Category:Endangered species","Category:Extinction","Category:Natural disasters","Category:Floods","Category:Droughts","Category:Wildfires","Category:Air pollution","Category:Water pollution","Category:Waste management","Category:Recycling","Category:Solar energy","Category:Wind power","Category:Nuclear power","Category:Fossil fuels","Category:Carbon dioxide","Category:Ozone depletion","Category:Coral reefs","Category:Rainforests","Category:Environmental organizations","Category:Environmental law"]},
+{id:"education",label:"Education",icon:"🎓",cats:["Category:Education","Category:Universities and colleges","Category:Schools","Category:Educational technology","Category:Academic disciplines","Category:Libraries","Category:Museums","Category:Scholarships","Category:Student organizations","Category:Literacy","Category:Special education","Category:Distance education","Category:Higher education","Category:Secondary education","Category:Primary education","Category:Vocational education","Category:Academic publishing","Category:Research institutes","Category:Think tanks","Category:Nobel laureates","Category:Academic conferences","Category:Scientific journals","Category:Learned societies"]},
+{id:"sports",label:"Sports",icon:"⚽",cats:["Category:Sports","Category:Olympic Games","Category:Football","Category:Cricket","Category:Basketball","Category:Tennis","Category:Athletics (sport)","Category:Swimming (sport)","Category:Cycling","Category:Boxing","Category:Martial arts","Category:Golf","Category:Rugby union","Category:Baseball","Category:Ice hockey","Category:Volleyball","Category:Handball","Category:Fencing","Category:Gymnastics","Category:Weightlifting","Category:Skiing","Category:Motorsport","Category:Horse racing","Category:Rowing (sport)","Category:Sailing","Category:Table tennis","Category:Badminton","Category:FIFA World Cup","Category:Commonwealth Games","Category:Asian Games"]},
 ];
 const LANG="en";
 const C={bg:"#FAF9F5",bgAlt:"#F0EEE6",card:"#FFFFFF",cardBorder:"#E8E6DE",text:"#141413",textSec:"#3D3D3A",muted:"#73726C",mutedLight:"#A3A29C",accent:"#D97757",accentHover:"#C4684B",accentSoft:"rgba(217,119,87,0.08)",accentBorder:"rgba(217,119,87,0.2)",green:"#2E7D5B",greenSoft:"rgba(46,125,91,0.08)",greenBorder:"rgba(46,125,91,0.2)",red:"#C4533A",redSoft:"rgba(196,83,58,0.08)",redBorder:"rgba(196,83,58,0.2)",amber:"#A67A2E",amberSoft:"rgba(166,122,46,0.08)",amberBorder:"rgba(166,122,46,0.2)",blue:"#3B6BA5",blueSoft:"rgba(59,107,165,0.06)",blueBorder:"rgba(59,107,165,0.18)",btnDark:"#3D3D3A",btnDarkHover:"#2A2A28",mono:"'IBM Plex Mono',monospace",serif:"'Source Serif 4',Georgia,serif",sans:"'Inter',-apple-system,sans-serif",radius:"12px",radiusSm:"8px",shadow:"0 1px 3px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02)",shadowMd:"0 4px 12px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)"};
@@ -298,6 +298,38 @@ async function searchCategories(query){
     const d=await r.json();return d[1]||[]}catch{return[]}
 }
 
+/* ── Fetch top viewed pages from Wikimedia Pageviews API ── */
+async function fetchTopPages(year, month) {
+  const mm = String(month).padStart(2, '0');
+  const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/${year}/${mm}/all-days`;
+
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'ArchiveTodayDetector/1.0 (https://github.com/nethahussain/wikipedia-archive-today-detector)' }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Pageviews API returned ${response.status}`);
+  }
+
+  const data = await response.json();
+  const articles = data.items?.[0]?.articles || [];
+
+  // Filter out non-article pages
+  const skipPrefixes = [
+    'Main_Page', 'Special:', 'Wikipedia:', 'Help:',
+    'Portal:', 'File:', 'Template:', 'Category:', 'Talk:',
+    'User:', 'MediaWiki:', 'Draft:', 'Module:'
+  ];
+
+  return articles
+    .filter(a => !skipPrefixes.some(prefix => a.article.startsWith(prefix)))
+    .filter(a => !a.article.startsWith('-'))
+    .map(a => ({
+      title: a.article.replace(/_/g, ' '),
+      views: a.views
+    }));
+}
+
 function buildEditUrl(title,links){
   const n=links.length;
   const summary=`Replacing ${n} archive.today link${n>1?'s':''} with Wayback Machine alternative${n>1?'s':''} per [[WP:ATODAY]]`;
@@ -452,7 +484,30 @@ function ResultsView({results,done,showOnlyAffected=false}){
   const withAlts=results.reduce((s,r)=>s+r.links.filter(l=>l.waybackUrl).length,0);
   const noAlts=results.reduce((s,r)=>s+r.links.filter(l=>l.status==="notfound").length,0);
   const pending=results.reduce((s,r)=>s+r.links.filter(l=>l.status==="pending").length,0);
-  const display=showOnlyAffected?(filter==="clean"?clean:affected):filter==="affected"?affected:filter==="clean"?clean:results;
+
+  // Split affected articles into fixable (has at least one Wayback alt) vs unfixable (none)
+  const fixable = affected.filter(r => r.links.some(l => l.waybackUrl));
+  const unfixable = affected.filter(r => !r.links.some(l => l.waybackUrl));
+
+  // Sort fixable: most alternatives first
+  const fixableSorted = [...fixable].sort((a, b) => {
+    const aAlts = a.links.filter(l => l.waybackUrl).length;
+    const bAlts = b.links.filter(l => l.waybackUrl).length;
+    return bAlts - aAlts;
+  });
+
+  // Determine which articles to display based on filter
+  let display;
+  if (showOnlyAffected) {
+    if (filter === "fixable") display = fixableSorted;
+    else if (filter === "unfixable") display = unfixable;
+    else if (filter === "clean") display = clean;
+    else display = [...fixableSorted, ...unfixable]; // "all" — fixable first
+  } else {
+    if (filter === "affected") display = [...fixableSorted, ...unfixable];
+    else if (filter === "clean") display = clean;
+    else display = [...fixableSorted, ...unfixable, ...clean]; // "all"
+  }
 
   // 5-Second Countdown Logic
   const handleVerifyClick=(id)=>{
@@ -499,9 +554,30 @@ function ResultsView({results,done,showOnlyAffected=false}){
         <Stat value={noAlts} label="No Alt" variant="red"/>{pending>0&&<Stat value={pending} label="Pending" variant="amber"/>}
       </div>
 
-      <div style={{display:"flex",gap:6,marginBottom:18}}>
-        {[{v:"all",l:showOnlyAffected?`Affected (${affected.length})`:`All (${results.length})`},...(!showOnlyAffected?[{v:"affected",l:`Affected (${affected.length})`}]:[]),{v:"clean",l:`Clean (${clean.length})`}].map(f=>
-          <button key={f.v} onClick={()=>setFilter(f.v)} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter===f.v?C.accent:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter===f.v?C.accentSoft:C.card,color:filter===f.v?C.accent:C.muted}}>{f.l}</button>
+      <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
+        {showOnlyAffected ? (
+          <React.Fragment>
+            <button onClick={()=>setFilter("all")} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter==="all"?C.accent:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter==="all"?C.accentSoft:C.card,color:filter==="all"?C.accent:C.muted}}>
+              All affected ({affected.length})
+            </button>
+            {fixable.length > 0 && (
+              <button onClick={()=>setFilter("fixable")} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter==="fixable"?C.green:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter==="fixable"?"rgba(46,125,91,0.08)":C.card,color:filter==="fixable"?C.green:C.muted}}>
+                ✓ Fixable ({fixable.length})
+              </button>
+            )}
+            {unfixable.length > 0 && (
+              <button onClick={()=>setFilter("unfixable")} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter==="unfixable"?C.red:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter==="unfixable"?C.redSoft:C.card,color:filter==="unfixable"?C.red:C.muted}}>
+                ✗ No alternative ({unfixable.length})
+              </button>
+            )}
+            <button onClick={()=>setFilter("clean")} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter==="clean"?C.accent:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter==="clean"?C.accentSoft:C.card,color:filter==="clean"?C.accent:C.muted}}>
+              Clean ({clean.length})
+            </button>
+          </React.Fragment>
+        ) : (
+          [{v:"all",l:`All (${results.length})`},{v:"affected",l:`Affected (${affected.length})`},{v:"clean",l:`Clean (${clean.length})`}].map(f=>
+            <button key={f.v} onClick={()=>setFilter(f.v)} style={{padding:"6px 16px",borderRadius:"999px",border:`1px solid ${filter===f.v?C.accent:C.cardBorder}`,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:C.sans,background:filter===f.v?C.accentSoft:C.card,color:filter===f.v?C.accent:C.muted}}>{f.l}</button>
+          )
         )}
       </div>
 
@@ -693,9 +769,23 @@ function CategoryTab(){
 
 function TopicTab(){
   const[selectedTopic,setSelectedTopic]=useState(null);const[customCats,setCustomCats]=useState("");const[phase,setPhase]=useState("pick");const[gatherProgress,setGatherProgress]=useState("");const engine=useScanEngine();
-  const startScan=async(cats)=>{engine.reset();setPhase("gathering");setGatherProgress("Gathering articles…");
+
+  // Pick a random subset of categories from the topic each scan
+  function pickRandomCats(allCats, count) {
+    const shuffled = [...allCats];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, Math.min(count, shuffled.length));
+  }
+
+  const startScan=async(allCats)=>{engine.reset();setPhase("gathering");setGatherProgress("Gathering articles…");
     try{const seen=new Set();let totalAffected=0;let round=0;const MAX_ROUNDS=10;
-      while(totalAffected<5&&round<MAX_ROUNDS){round++;const all=[];for(let i=0;i<cats.length&&all.length<500;i++){setGatherProgress(`${round>1?`Round ${round}: `:""}Category ${i+1}/${cats.length}: ${cats[i]} (${all.length} articles)`);const m=await fetchCatMembers(cats[i],500-all.length);for(const t of m){if(!seen.has(t)&&all.length<500){seen.add(t);all.push(t)}}}
+      while(totalAffected<5&&round<MAX_ROUNDS){round++;
+        // Each round picks a fresh random subset of categories
+        const cats = pickRandomCats(allCats, Math.min(8, allCats.length));
+        const all=[];for(let i=0;i<cats.length&&all.length<500;i++){setGatherProgress(`${round>1?`Round ${round}: `:""}Category ${i+1}/${cats.length}: ${cats[i]} (${all.length} articles)`);const m=await fetchCatMembers(cats[i],500-all.length);for(const t of m){if(!seen.has(t)&&all.length<500){seen.add(t);all.push(t)}}}
       if(!all.length)break;setGatherProgress("");setPhase("scanning");const r=await engine.scanArticles(all,{append:round>1});totalAffected=r.totalAffected;
       if(totalAffected<5&&round<MAX_ROUNDS){setPhase("gathering");setGatherProgress(`Found ${totalAffected} affected article${totalAffected!==1?"s":""} so far (need 5). Fetching more…`)}}
       setGatherProgress("");setPhase("scanning")}catch(e){setGatherProgress("");setPhase("pick")}};
@@ -744,6 +834,213 @@ function TopicTab(){
   );
 }
 
+/* ── High Traffic Tab ── */
+function HighTrafficTab() {
+  const engine = useScanEngine();
+
+  // Default to previous month
+  const now = new Date();
+  const defaultYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const defaultMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+
+  const [year, setYear] = useState(defaultYear);
+  const [month, setMonth] = useState(defaultMonth);
+  const [phase, setPhase] = useState('pick');
+  const [topPages, setTopPages] = useState([]);
+  const [fetchError, setFetchError] = useState(null);
+  const [fetchProgress, setFetchProgress] = useState('');
+
+  const monthNames = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ];
+
+  const startScan = async () => {
+    setFetchError(null);
+    setPhase('fetching');
+    setFetchProgress('Fetching top viewed pages from Wikimedia Pageviews API…');
+    engine.reset();
+
+    try {
+      const pages = await fetchTopPages(year, month);
+      setTopPages(pages);
+
+      if (pages.length === 0) {
+        setFetchError('No pages returned from the API for this month.');
+        setPhase('pick');
+        return;
+      }
+
+      setFetchProgress('');
+      setPhase('scanning');
+
+      // Scan in batches — the API returns ~1000 pages,
+      // but we scan up to 500 at a time (existing limit)
+      const titles = pages.map(p => p.title);
+      const BATCH_SIZE = 500;
+
+      for (let i = 0; i < titles.length; i += BATCH_SIZE) {
+        const batch = titles.slice(i, i + BATCH_SIZE);
+        await engine.scanArticles(batch, { append: i > 0 });
+      }
+    } catch (err) {
+      setFetchError(err.message || 'Failed to fetch top pages.');
+      setPhase('pick');
+    }
+  };
+
+  const backToPick = () => {
+    engine.stop();
+    engine.reset();
+    setTopPages([]);
+    setPhase('pick');
+    setFetchProgress('');
+    setFetchError(null);
+  };
+
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [];
+  for (let y = currentYear; y >= 2015; y--) {
+    yearOptions.push(y);
+  }
+
+  if (phase === 'pick') {
+    return (
+      <div>
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ fontSize: 17, fontWeight: 700, color: C.text, margin: '0 0 6px', fontFamily: C.serif }}>
+            Scan high-traffic pages
+          </h3>
+          <p style={{ color: C.muted, fontSize: 13, margin: 0, lineHeight: 1.55 }}>
+            Fetches the top ~1,000 most viewed Wikipedia articles for a given month from the
+            {' '}<a href="https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/reference/page-views.html"
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ color: C.accent, textDecoration: 'none', fontWeight: 600 }}>
+              Wikimedia Pageviews API
+            </a>, then scans them for archive.today links.
+            This is the same data source used for the
+            {' '}<a href="https://en.wikipedia.org/wiki/Wikipedia:Archive.today_guidance/high_traffic_pages_index"
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ color: C.accent, textDecoration: 'none', fontWeight: 600 }}>
+              high-traffic pages index
+            </a>.
+          </p>
+        </div>
+
+        <div style={{
+          background: C.card,
+          borderRadius: C.radius,
+          padding: 22,
+          border: `1px solid ${C.cardBorder}`,
+          boxShadow: C.shadow
+        }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Month
+              </label>
+              <select
+                value={month}
+                onChange={e => setMonth(Number(e.target.value))}
+                style={{
+                  padding: '8px 12px', borderRadius: C.radiusSm,
+                  border: `1px solid ${C.cardBorder}`, background: C.bg,
+                  fontSize: 13, fontFamily: C.sans, color: C.text, cursor: 'pointer'
+                }}>
+                {monthNames.map((name, i) => (
+                  <option key={i + 1} value={i + 1}>{name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Year
+              </label>
+              <select
+                value={year}
+                onChange={e => setYear(Number(e.target.value))}
+                style={{
+                  padding: '8px 12px', borderRadius: C.radiusSm,
+                  border: `1px solid ${C.cardBorder}`, background: C.bg,
+                  fontSize: 13, fontFamily: C.sans, color: C.text, cursor: 'pointer'
+                }}>
+                {yearOptions.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={startScan}
+              onMouseEnter={e => e.currentTarget.style.background = C.accentHover}
+              onMouseLeave={e => e.currentTarget.style.background = C.accent}
+              style={{
+                padding: '8px 20px', borderRadius: C.radiusSm,
+                border: 'none', background: C.accent, color: '#fff',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                fontFamily: C.sans, boxShadow: C.shadow
+              }}>
+              Scan top pages
+            </button>
+          </div>
+
+          {fetchError && <ErrorMsg msg={fetchError} />}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={backToPick}
+            onMouseEnter={e => e.currentTarget.style.borderColor = C.accent}
+            onMouseLeave={e => e.currentTarget.style.borderColor = C.cardBorder}
+            style={{
+              padding: '7px 16px', borderRadius: C.radiusSm,
+              border: `1px solid ${C.cardBorder}`, background: C.card,
+              color: C.muted, fontSize: 12, fontWeight: 600,
+              cursor: 'pointer', fontFamily: C.sans, boxShadow: C.shadow
+            }}>
+            ← Back
+          </button>
+          <span style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: C.serif }}>
+            📈 Top pages — {monthNames[month - 1]} {year}
+          </span>
+          {topPages.length > 0 && (
+            <span style={{
+              fontSize: 11, color: C.muted, background: C.bgAlt,
+              padding: '4px 10px', borderRadius: '999px',
+              border: `1px solid ${C.cardBorder}`, fontWeight: 600
+            }}>
+              {topPages.length} pages fetched
+            </span>
+          )}
+        </div>
+        {engine.loading && (
+          <button
+            onClick={() => { engine.stop(); setPhase('scanning'); }}
+            style={{
+              padding: '7px 16px', borderRadius: C.radiusSm,
+              border: 'none', background: C.red, color: '#fff',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer'
+            }}>
+            Stop scan
+          </button>
+        )}
+      </div>
+
+      {fetchProgress && <Spinner text={fetchProgress} />}
+      {engine.progress && <Spinner text={engine.progress} />}
+      {engine.error && <ErrorMsg msg={engine.error} />}
+      <ResultsView results={engine.results} done={engine.done} showOnlyAffected={true} />
+    </div>
+  );
+}
+
 /* ── Main App ── */
 function App(){
   const[tab,setTab]=useState("article");
@@ -760,9 +1057,10 @@ function App(){
           <TabBtn active={tab==="article"} onClick={()=>setTab("article")}>Article</TabBtn>
           <TabBtn active={tab==="category"} onClick={()=>setTab("category")}>Category</TabBtn>
           <TabBtn active={tab==="topic"} onClick={()=>setTab("topic")}>Topic Browse</TabBtn>
+          <TabBtn active={tab==="hightraffic"} onClick={()=>setTab("hightraffic")}>High Traffic</TabBtn>
         </div>
       </header>
-      <main style={{maxWidth:880,margin:"0 auto",padding:"24px 20px 48px"}}>{tab==="article"&&<ArticleTab/>}{tab==="category"&&<CategoryTab/>}{tab==="topic"&&<TopicTab/>}</main>
+      <main style={{maxWidth:880,margin:"0 auto",padding:"24px 20px 48px"}}>{tab==="article"&&<ArticleTab/>}{tab==="category"&&<CategoryTab/>}{tab==="topic"&&<TopicTab/>}{tab==="hightraffic"&&<HighTrafficTab/>}</main>
       <footer style={{maxWidth:880,margin:"0 auto",padding:"0 20px 32px"}}>
         <div style={{padding:"16px 20px",background:C.bgAlt,borderRadius:C.radius,border:`1px solid ${C.cardBorder}`,fontSize:12,color:C.muted,lineHeight:1.8}}>
           <strong style={{color:C.textSec}}>Detected domains:</strong> {AT_DOMAINS.join(", ")}<br/>
