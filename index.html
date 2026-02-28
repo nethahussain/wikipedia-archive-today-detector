@@ -195,11 +195,10 @@ function executeMassEdit(title, originalWikitext, selectedLinks) {
 
   selectedLinks.forEach(link => {
     if (link.archiveUrl && link.waybackUrl) {
-      // Re-run the state machine on the LIVE newText, because previous replacements 
-      // will have shifted the string indexes.
+      // Try the citation block approach first
       const blockInfo = extractCitationBlock(newText, link.archiveUrl);
       
-      if (blockInfo.text) {
+      if (blockInfo.text && blockInfo.text.includes(link.archiveUrl)) {
          let updatedBlock = blockInfo.text;
          
          // 1. Swap the URL safely inside the isolated block
@@ -229,15 +228,31 @@ function executeMassEdit(title, originalWikitext, selectedLinks) {
          newText = newText.substring(0, blockInfo.start) + updatedBlock + newText.substring(blockInfo.end);
          replacedCount++;
       } else {
-         // Fallback: If it's just a bare URL outside a citation template, just swap the string.
+         // Fallback: simple string replacement anywhere in the wikitext
+         const before = newText;
          newText = newText.split(link.archiveUrl).join(link.waybackUrl);
-         replacedCount++;
+         if (newText !== before) {
+           replacedCount++;
+           // Also try to insert archive-date after archive-url in the surrounding context
+           if (link.waybackDate) {
+             const dateRegex = /(\|\s*archive-?date\s*=)[^|}]*/i;
+             if (!dateRegex.test(newText)) {
+               const afterArchiveUrl = /(\|\s*archive-?url\s*=[^|}]*)/i;
+               if (afterArchiveUrl.test(newText)) {
+                 newText = newText.replace(
+                   afterArchiveUrl,
+                   `$1 |archive-date=${link.waybackDate}`
+                 );
+               }
+             }
+           }
+         }
       }
     }
   });
 
   if (replacedCount === 0 || newText === originalWikitext) {
-    alert("No changes could be made.");
+    alert("No changes could be made. The article may have been edited since scanning. Try re-scanning the article.");
     return;
   }
 
