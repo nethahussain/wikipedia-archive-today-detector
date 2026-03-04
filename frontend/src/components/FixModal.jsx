@@ -3,6 +3,50 @@ import { C } from '../constants';
 import { previewEdit, submitEdit, previewDeadlinks, submitDeadlinks } from '../api';
 import { EditIcon } from './Shared';
 
+function diffBounds(a, b) {
+  const minLen = Math.min(a.length, b.length);
+  let prefixLen = 0;
+  while (prefixLen < minLen && a[prefixLen] === b[prefixLen]) prefixLen++;
+  let suffixLen = 0;
+  while (suffixLen < minLen - prefixLen && a[a.length - 1 - suffixLen] === b[b.length - 1 - suffixLen]) suffixLen++;
+  return { prefixLen, suffixLen };
+}
+
+function renderIntraline(line) {
+  const { text, intraline, type } = line;
+  if (!intraline) return text;
+  const { prefixLen, suffixLen } = intraline;
+  const changedStart = prefixLen;
+  const changedEnd = text.length - suffixLen;
+  const markStyle = {
+    background: type === 'del' ? 'rgba(196,83,58,0.45)' : 'rgba(46,125,91,0.45)',
+    color: 'inherit',
+    borderRadius: 2,
+    padding: '0 1px',
+  };
+  if (text.length <= 200) {
+    return (
+      <>
+        {text.slice(0, changedStart)}
+        <mark style={markStyle}>{text.slice(changedStart, changedEnd)}</mark>
+        {text.slice(changedEnd)}
+      </>
+    );
+  }
+  const R = 90;
+  const windowStart = Math.max(0, changedStart - R);
+  const windowEnd = Math.min(text.length, changedEnd + R);
+  return (
+    <>
+      {windowStart > 0 && <span style={{ opacity: 0.45 }}>{'…'}</span>}
+      {text.slice(windowStart, changedStart)}
+      <mark style={markStyle}>{text.slice(changedStart, changedEnd)}</mark>
+      {text.slice(changedEnd, windowEnd)}
+      {windowEnd < text.length && <span style={{ opacity: 0.45 }}>{'…'}</span>}
+    </>
+  );
+}
+
 function computeDiff(oldText, newText, contextLines = 3) {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
@@ -39,6 +83,14 @@ function computeDiff(oldText, newText, contextLines = 3) {
         }
         if (match) { changes.push({ oldStart: changeStart.old, oldEnd: oi, newStart: changeStart.new, newEnd: ni + ahead }); ni += ahead; found = true; continue; }
       }
+      // Try same-offset sync (equal-size substitution block — both sides advance together)
+      if (oi + ahead < oldLines.length && ni + ahead < newLines.length) {
+        let match = true;
+        for (let k = 0; k < 2 && match; k++) {
+          if (oi + ahead + k >= oldLines.length || ni + ahead + k >= newLines.length || oldLines[oi + ahead + k] !== newLines[ni + ahead + k]) match = false;
+        }
+        if (match) { changes.push({ oldStart: changeStart.old, oldEnd: oi + ahead, newStart: changeStart.new, newEnd: ni + ahead }); oi += ahead; ni += ahead; found = true; continue; }
+      }
     }
     if (!found) {
       changes.push({ oldStart: changeStart.old, oldEnd: oldLines.length, newStart: changeStart.new, newEnd: newLines.length });
@@ -57,13 +109,18 @@ function computeDiff(oldText, newText, contextLines = 3) {
     for (let i = ctxStart; i < ch.oldStart; i++) {
       lines.push({ type: 'ctx', text: oldLines[i], lineNo: i + 1 });
     }
+    // For equal-size substitution blocks, compute intraline character bounds per paired line
+    const blockSize = ch.oldEnd - ch.oldStart;
+    const pairedIntraline = (blockSize > 0 && blockSize === ch.newEnd - ch.newStart)
+      ? Array.from({ length: blockSize }, (_, i) => diffBounds(oldLines[ch.oldStart + i], newLines[ch.newStart + i]))
+      : null;
     // Removed lines
     for (let i = ch.oldStart; i < ch.oldEnd; i++) {
-      lines.push({ type: 'del', text: oldLines[i], lineNo: i + 1 });
+      lines.push({ type: 'del', text: oldLines[i], lineNo: i + 1, intraline: pairedIntraline?.[i - ch.oldStart] ?? null });
     }
     // Added lines
     for (let i = ch.newStart; i < ch.newEnd; i++) {
-      lines.push({ type: 'add', text: newLines[i], lineNo: i + 1 });
+      lines.push({ type: 'add', text: newLines[i], lineNo: i + 1, intraline: pairedIntraline?.[i - ch.newStart] ?? null });
     }
     // Context after
     for (let i = ch.oldEnd; i < ctxEndOld; i++) {
@@ -191,7 +248,7 @@ export default function FixModal({ article, onClose, mode = 'archive' }) {
                         <span style={{ marginRight: 6, userSelect: 'none' }}>
                           {line.type === 'del' ? '-' : line.type === 'add' ? '+' : ' '}
                         </span>
-                        {line.text}
+                        {renderIntraline(line)}
                       </div>
                     ))}
                   </div>
