@@ -124,11 +124,11 @@ async function checkWayback(o,retries=3){
   return null;
 }
 async function fetchWikitext(t){const r=await fetch(`https://${LANG}.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(t)}&prop=wikitext&format=json&origin=*`);if(!r.ok)throw new Error(`API ${r.status}`);const d=await r.json();if(d.error)throw new Error(d.error.info);return d.parse.wikitext["*"]}
-async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";const rndTs=new Date(Date.now()-Math.random()*(Date.now()-new Date("2003-01-01").getTime())).toISOString();const sortParam=`&cmsort=timestamp&cmstart=${rndTs}`;do{const u=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(prefix)}&cmlimit=50&cmtype=page&cmnamespace=0&format=json&origin=*${sortParam}${cm?`&cmcontinue=${cm}`:""}`;const r=await fetch(u);const d=await r.json();if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||""}while(cm&&a.length<limit);if(a.length<limit){let cm2="";do{const u2=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(prefix)}&cmlimit=50&cmtype=page&cmnamespace=0&format=json&origin=*&cmsort=timestamp&cmstart=2001-01-01T00:00:00Z&cmend=${rndTs}${cm2?`&cmcontinue=${cm2}`:""}`;const r2=await fetch(u2);const d2=await r2.json();if(d2.query?.categorymembers)a.push(...d2.query.categorymembers.filter(m=>!a.includes(m.title)).map(m=>m.title));cm2=d2.continue?.cmcontinue||""}while(cm2&&a.length<limit)}for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,limit)}
+async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";const rndTs=new Date(Date.now()-Math.random()*(Date.now()-new Date("2003-01-01").getTime())).toISOString().replace(/\.\d{3}Z$/,"Z");const sortParam=`&cmsort=timestamp&cmstart=${rndTs}`;try{do{const u=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(prefix)}&cmlimit=50&cmtype=page&cmnamespace=0&format=json&origin=*${sortParam}${cm?`&cmcontinue=${cm}`:""}`;const r=await fetch(u);if(!r.ok)break;const d=await r.json();if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||""}while(cm&&a.length<limit);if(a.length<limit){let cm2="";do{const u2=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(prefix)}&cmlimit=50&cmtype=page&cmnamespace=0&format=json&origin=*&cmsort=timestamp&cmstart=2001-01-01T00:00:00Z&cmend=${rndTs}${cm2?`&cmcontinue=${cm2}`:""}`;const r2=await fetch(u2);if(!r2.ok)break;const d2=await r2.json();if(d2.query?.categorymembers)a.push(...d2.query.categorymembers.filter(m=>!a.includes(m.title)).map(m=>m.title));cm2=d2.continue?.cmcontinue||""}while(cm2&&a.length<limit)}}catch(e){console.warn("fetchCatMembers error:",e.message)}for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,limit)}
 
 async function fetchSubcategories(cat,maxDepth=1,onProgress=null){const prefix=c=>c.startsWith("Category:")?c:`Category:${c}`;const seen=new Set();const allCats=[prefix(cat)];seen.add(prefix(cat));
   async function crawl(cats,depth){if(depth>maxDepth)return;const nextLevel=[];for(const c of cats){if(onProgress)onProgress(`Crawling subcategories (depth ${depth}/${maxDepth}): ${c.replace("Category:","")}`);
-    let cm="";do{const u=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(c)}&cmlimit=50&cmtype=subcat&format=json&origin=*${cm?`&cmcontinue=${cm}`:""}`;const r=await fetch(u);const d=await r.json();if(d.query?.categorymembers){for(const m of d.query.categorymembers){if(!seen.has(m.title)){seen.add(m.title);allCats.push(m.title);nextLevel.push(m.title)}}}cm=d.continue?.cmcontinue||""}while(cm)}
+    let cm="";try{do{const u=`https://${LANG}.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent(c)}&cmlimit=50&cmtype=subcat&format=json&origin=*${cm?`&cmcontinue=${cm}`:""}`;const r=await fetch(u);if(!r.ok)break;const d=await r.json();if(d.query?.categorymembers){for(const m of d.query.categorymembers){if(!seen.has(m.title)){seen.add(m.title);allCats.push(m.title);nextLevel.push(m.title)}}}cm=d.continue?.cmcontinue||""}while(cm)}catch(e){console.warn("fetchSubcategories error:",e.message)}}
     if(nextLevel.length)await crawl(nextLevel,depth+1)}
   await crawl([prefix(cat)],1);return allCats}
 
@@ -776,11 +776,12 @@ function ArticleTab(){
 
 function CategoryTab(){
   const[input,setInput]=useState("");const engine=useScanEngine();const[subDepth,setSubDepth]=useState(0);const[gatherMsg,setGatherMsg]=useState("");
-  const go=async()=>{if(!input.trim())return;engine.reset();setGatherMsg("");try{const seen=new Set();let totalAffected=0;let round=0;const MAX_ROUNDS=10;const cat=input.trim();
+  const[catError,setCatError]=useState("");
+  const go=async()=>{if(!input.trim())return;engine.reset();setGatherMsg("");setCatError("");try{const seen=new Set();let totalAffected=0;let round=0;const MAX_ROUNDS=10;const cat=input.trim();
     let cats=[cat];
     if(subDepth>0){setGatherMsg("Crawling subcategories…");cats=await fetchSubcategories(cat,subDepth,msg=>setGatherMsg(msg));setGatherMsg(`Found ${cats.length} categories. Scanning articles…`)}
     while(totalAffected<5&&round<MAX_ROUNDS){round++;const all=[];for(let i=0;i<cats.length&&all.length<500;i++){const t=await fetchCatMembers(cats[i],500-all.length);for(const x of t){if(!seen.has(x)&&all.length<500){seen.add(x);all.push(x)}}}
-    if(!all.length)break;setGatherMsg("");const r=await engine.scanArticles(all,{append:round>1});totalAffected=r.totalAffected}}catch(e){}finally{setGatherMsg("")}};
+    if(!all.length)break;setGatherMsg("");const r=await engine.scanArticles(all,{append:round>1});totalAffected=r.totalAffected}}catch(e){setCatError(e.message||"An error occurred")}finally{setGatherMsg("")}};
   return(
     <React.Fragment>
       <AutocompleteInput placeholder="Search for a Wikipedia category…" value={input} onChange={setInput} onGo={go} loading={engine.loading} onStop={engine.stop} searchFn={searchCategories}/>
@@ -790,7 +791,7 @@ function CategoryTab(){
           <button key={o.v} onClick={()=>setSubDepth(o.v)} style={{padding:"5px 12px",borderRadius:C.radiusSm,border:`1px solid ${subDepth===o.v?C.accent:C.cardBorder}`,background:subDepth===o.v?C.accent:C.card,color:subDepth===o.v?"#FAF9F5":C.textSec,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:C.sans}}>{o.l}</button>
         ))}
       </div>
-      {gatherMsg&&<Spinner text={gatherMsg}/>}{engine.progress&&<Spinner text={engine.progress}/>}{engine.error&&<ErrorMsg msg={engine.error}/>}
+      {gatherMsg&&<Spinner text={gatherMsg}/>}{engine.progress&&<Spinner text={engine.progress}/>}{engine.error&&<ErrorMsg msg={engine.error}/>}{catError&&<ErrorMsg msg={catError}/>}
       <ResultsView results={engine.results} done={engine.done}/>
     </React.Fragment>
   );
