@@ -324,9 +324,7 @@ async function fetchTopPages(year, month) {
   const mm = String(month).padStart(2, '0');
   const url = `https://wikimedia.org/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/${year}/${mm}/all-days`;
 
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'ArchiveTodayDetector/1.0 (https://github.com/nethahussain/wikipedia-archive-today-detector)' }
-  });
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Pageviews API returned ${response.status}`);
