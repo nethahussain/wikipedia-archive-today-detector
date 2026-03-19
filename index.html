@@ -346,7 +346,7 @@ async function fetchTopPages(year, month) {
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Pageviews API returned ${response.status}`);
+    throw new Error(response.status===404?`Data for this month is not yet available. The Pageviews API only serves completed months — try an earlier month.`:`Pageviews API returned ${response.status}`);
   }
 
   const data = await response.json();
@@ -889,6 +889,8 @@ function HighTrafficTab() {
   const now = new Date();
   const defaultYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
   const defaultMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+  const maxYear = defaultYear;
+  const maxMonth = defaultMonth;
 
   const [year, setYear] = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);
@@ -994,9 +996,11 @@ function HighTrafficTab() {
                   border: `1px solid ${C.cardBorder}`, background: C.bg,
                   fontSize: 13, fontFamily: C.sans, color: C.text, cursor: 'pointer'
                 }}>
-                {monthNames.map((name, i) => (
-                  <option key={i + 1} value={i + 1}>{name}</option>
-                ))}
+                {monthNames.map((name, i) => {
+                  const m = i + 1;
+                  const disabled = year === maxYear && m > maxMonth;
+                  return <option key={m} value={m} disabled={disabled}>{name}{disabled ? ' (not yet available)' : ''}</option>
+                })}
               </select>
             </div>
 
@@ -1006,7 +1010,7 @@ function HighTrafficTab() {
               </label>
               <select
                 value={year}
-                onChange={e => setYear(Number(e.target.value))}
+                onChange={e => {const y=Number(e.target.value);setYear(y);if(y===maxYear&&month>maxMonth)setMonth(maxMonth)}}
                 style={{
                   padding: '8px 12px', borderRadius: C.radiusSm,
                   border: `1px solid ${C.cardBorder}`, background: C.bg,
