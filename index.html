@@ -283,7 +283,7 @@ function executeMassEdit(title, originalWikitext, selectedLinks) {
     return;
   }
 
-  const summary = `Replacing ${replacedCount} archive.today link${replacedCount > 1 ? 's' : ''} with Wayback Machine alternative${replacedCount > 1 ? 's' : ''} per [[WP:ATODAY]] (via [[WP:ATD|AT Detector]])`;
+  const summary = `Replacing ${replacedCount} archive.today link${replacedCount > 1 ? 's' : ''} with Wayback Machine alternative${replacedCount > 1 ? 's' : ''} per [[WP:ATODAY]] (via WP:AT Detector (https://en.wikipedia.org/wiki/Wikipedia:AT_Detector))`;
 
   const form = document.createElement('form');
   form.method = 'POST';
@@ -370,7 +370,7 @@ async function fetchTopPages(year, month) {
 
 function buildEditUrl(title,links){
   const n=links.length;
-  const summary=`Replacing ${n} archive.today link${n>1?'s':''} with Wayback Machine alternative${n>1?'s':''} per [[WP:ATODAY]] (via [[WP:ATD|AT Detector]])`;
+  const summary=`Replacing ${n} archive.today link${n>1?'s':''} with Wayback Machine alternative${n>1?'s':''} per [[WP:ATODAY]] (via WP:AT Detector (https://en.wikipedia.org/wiki/Wikipedia:AT_Detector))`;
   return `https://en.wikipedia.org/w/index.php?title=${encodeURIComponent(title)}&action=edit&summary=${encodeURIComponent(summary)}`;
 }
 
