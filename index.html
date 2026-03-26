@@ -145,11 +145,12 @@ async function checkWayback(o,retries=3){
   return null;
 }
 async function fetchWikitext(t){const d=await mwApi({action:'parse',page:t,prop:'wikitext'});if(d.error)throw new Error(d.error.info);return d.parse.wikitext["*"]}
-async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";const rndTs=new Date(Date.now()-Math.random()*(Date.now()-new Date("2003-01-01").getTime())).toISOString().replace(/\.\d{3}Z$/,"Z");try{do{const params={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'50',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:rndTs};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||""}while(cm&&a.length<limit);if(a.length<limit){let cm2="";do{const params2={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'50',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:'2001-01-01T00:00:00Z',cmend:rndTs};if(cm2)params2.cmcontinue=cm2;const d2=await mwApi(params2);if(d2.query?.categorymembers)a.push(...d2.query.categorymembers.filter(m=>!a.includes(m.title)).map(m=>m.title));cm2=d2.continue?.cmcontinue||""}while(cm2&&a.length<limit)}}catch(e){console.warn("fetchCatMembers error:",e.message)}for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,limit)}
+async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";const rndTs=new Date(Date.now()-Math.random()*(Date.now()-new Date("2003-01-01").getTime())).toISOString().replace(/\.\d{3}Z$/,"Z");const delay=ms=>new Promise(r=>setTimeout(r,ms));try{do{const params={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'50',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:rndTs};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||"";if(cm)await delay(300)}while(cm&&a.length<limit);if(a.length<limit){let cm2="";do{const params2={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'50',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:'2001-01-01T00:00:00Z',cmend:rndTs};if(cm2)params2.cmcontinue=cm2;const d2=await mwApi(params2);if(d2.query?.categorymembers)a.push(...d2.query.categorymembers.filter(m=>!a.includes(m.title)).map(m=>m.title));cm2=d2.continue?.cmcontinue||"";if(cm2)await delay(300)}while(cm2&&a.length<limit)}}catch(e){console.warn("fetchCatMembers error:",e.message)}for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,limit)}
 
 async function fetchSubcategories(cat,maxDepth=1,onProgress=null){const prefix=c=>c.startsWith("Category:")?c:`Category:${c}`;const seen=new Set();const allCats=[prefix(cat)];seen.add(prefix(cat));
   async function crawl(cats,depth){if(depth>maxDepth)return;const nextLevel=[];for(const c of cats){if(onProgress)onProgress(`Crawling subcategories (depth ${depth}/${maxDepth}): ${c.replace("Category:","")}`);
-    let cm="";try{do{const params={action:'query',list:'categorymembers',cmtitle:c,cmlimit:'50',cmtype:'subcat'};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers){for(const m of d.query.categorymembers){if(!seen.has(m.title)){seen.add(m.title);allCats.push(m.title);nextLevel.push(m.title)}}}cm=d.continue?.cmcontinue||""}while(cm)}catch(e){console.warn("fetchSubcategories error:",e.message)}}
+    let cm="";try{do{const params={action:'query',list:'categorymembers',cmtitle:c,cmlimit:'50',cmtype:'subcat'};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers){for(const m of d.query.categorymembers){if(!seen.has(m.title)){seen.add(m.title);allCats.push(m.title);nextLevel.push(m.title)}}}cm=d.continue?.cmcontinue||"";if(cm)await new Promise(r=>setTimeout(r,300))}while(cm)}catch(e){console.warn("fetchSubcategories error:",e.message)}}
+    await new Promise(r=>setTimeout(r,200));
     if(nextLevel.length)await crawl(nextLevel,depth+1)}
   await crawl([prefix(cat)],1);return allCats}
 
@@ -465,25 +466,6 @@ function TabBtn({active,children,onClick}){return<button onClick={onClick} style
 function EditIcon(){return<svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{flexShrink:0}}><path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M9.5 3.5L12.5 6.5" stroke="currentColor" strokeWidth="1.5"/></svg>}
 function ErrorMsg({msg}){return<div style={{background:C.redSoft,border:`1px solid ${C.redBorder}`,borderRadius:C.radiusSm,padding:"12px 16px",color:C.red,marginBottom:16,fontSize:13,lineHeight:1.5}}>{msg}</div>}
 
-/* ── Wayback 503 Notice ── */
-function WaybackNotice(){
-  const[dismissed,setDismissed]=useState(false);
-  if(dismissed)return null;
-  return(
-    <div style={{background:C.amberSoft,border:`1px solid ${C.amberBorder}`,borderRadius:C.radius,padding:"14px 18px",marginBottom:18,position:"relative"}}>
-      <button onClick={()=>setDismissed(true)} style={{position:"absolute",top:10,right:12,background:"none",border:"none",color:C.mutedLight,cursor:"pointer",fontSize:16,lineHeight:1,padding:4}} title="Dismiss">×</button>
-      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-        <span style={{fontSize:18,lineHeight:1,flexShrink:0,marginTop:1}}>⚠️</span>
-        <div>
-          <div style={{fontWeight:700,fontSize:13,color:C.amber,marginBottom:4}}>Wayback Machine links may show "503 Service Unavailable"</div>
-          <div style={{fontSize:12,color:C.textSec,lineHeight:1.65}}>
-            This is an <strong>Internet Archive server-side issue</strong>, not a problem with this tool or the archived page itself. The Internet Archive serves billions of pages and their servers occasionally return 503 errors under heavy load or during maintenance. <strong>This tool automatically retries failed requests up to 3 times</strong>, but if a Wayback link still shows 503 when you click it, simply refresh — the archived content is still there, it's just a temporary capacity bottleneck on their end.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ── Scan Engine ── */
 function useScanEngine(){
@@ -584,8 +566,7 @@ function ResultsView({results,done,showOnlyAffected=false}){
         </div>
       )}
 
-      {withAlts>0&&<WaybackNotice/>}
-
+      
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(110px, 1fr))",gap:10,marginBottom:24}}>
         <Stat value={results.length} label="Scanned" variant="muted"/><Stat value={affected.length} label="Affected" variant="red"/>
         <Stat value={totalLinks} label="AT Links" variant="amber"/><Stat value={withAlts} label="Alternatives" variant="green"/>
@@ -1116,7 +1097,7 @@ function App(){
         <div style={{padding:"16px 20px",background:C.bgAlt,borderRadius:C.radius,border:`1px solid ${C.cardBorder}`,fontSize:12,color:C.muted,lineHeight:1.8}}>
           <strong style={{color:C.textSec}}>Detected domains:</strong> {AT_DOMAINS.join(", ")}<br/>
           <strong style={{color:C.textSec}}>How it works:</strong> Fetches wikitext → regex-matches archive.today URLs → extracts original URLs → queries Wayback Machine API → provides one-click edit links.<br/>
-          <strong style={{color:C.textSec}}>Limits:</strong> Up to 500 articles per scan. Wayback checks rate-limited (~300ms between requests). Auto-retries 503 errors up to 3 times with backoff.
+          <strong style={{color:C.textSec}}>Limits:</strong> Up to 500 articles per scan. Wayback checks rate-limited (~300ms between requests). Auto-retries failed requests with backoff.
         </div>
         <div style={{textAlign:"center",marginTop:16,fontSize:12,color:C.mutedLight}}>
           Created by <a href="https://github.com/nethahussain" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none",fontWeight:600}} onMouseEnter={e=>e.currentTarget.style.textDecoration="underline"} onMouseLeave={e=>e.currentTarget.style.textDecoration="none"}>Netha Hussain</a> with Claude AI · <a href="https://github.com/nethahussain/wikipedia-archive-today-detector" target="_blank" rel="noopener noreferrer" style={{color:C.accent,textDecoration:"none",fontWeight:600}} onMouseEnter={e=>e.currentTarget.style.textDecoration="underline"} onMouseLeave={e=>e.currentTarget.style.textDecoration="none"}>Source code</a>
