@@ -156,11 +156,12 @@ async function checkWayback(o,retries=3){
   return null;
 }
 async function fetchWikitext(t){const d=await mwApi({action:'parse',page:t,prop:'wikitext'});if(d.error)throw new Error(d.error.info);return d.parse.wikitext["*"]}
-async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";const rndTs=new Date(Date.now()-Math.random()*(Date.now()-new Date("2003-01-01").getTime())).toISOString().replace(/\.\d{3}Z$/,"Z");const delay=ms=>new Promise(r=>setTimeout(r,ms));try{do{const params={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'50',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:rndTs};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||"";if(cm)await delay(300)}while(cm&&a.length<limit);if(a.length<limit){let cm2="";do{const params2={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'50',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:'2001-01-01T00:00:00Z',cmend:rndTs};if(cm2)params2.cmcontinue=cm2;const d2=await mwApi(params2);if(d2.query?.categorymembers)a.push(...d2.query.categorymembers.filter(m=>!a.includes(m.title)).map(m=>m.title));cm2=d2.continue?.cmcontinue||"";if(cm2)await delay(300)}while(cm2&&a.length<limit)}}catch(e){console.warn("fetchCatMembers error:",e.message)}for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,limit)}
+async function fetchWikitextBatch(titles){const results={};for(let i=0;i<titles.length;i+=50){const batch=titles.slice(i,i+50);const d=await mwApi({action:'query',prop:'revisions',titles:batch.join('|'),rvprop:'content',rvslots:'main',formatversion:'2'});if(d.query?.pages){for(const p of d.query.pages){if(!p.missing&&p.revisions?.[0]?.slots?.main?.content){results[p.title]=p.revisions[0].slots.main.content}}}if(i+50<titles.length)await new Promise(r=>setTimeout(r,300))}return results}
+async function fetchCatMembers(c,limit=500){const prefix=c.startsWith("Category:")?c:`Category:${c}`;let a=[],cm="";const rndTs=new Date(Date.now()-Math.random()*(Date.now()-new Date("2003-01-01").getTime())).toISOString().replace(/\.\d{3}Z$/,"Z");const delay=ms=>new Promise(r=>setTimeout(r,ms));try{do{const params={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'500',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:rndTs};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers)a.push(...d.query.categorymembers.map(m=>m.title));cm=d.continue?.cmcontinue||"";if(cm)await delay(300)}while(cm&&a.length<limit);if(a.length<limit){let cm2="";do{const params2={action:'query',list:'categorymembers',cmtitle:prefix,cmlimit:'500',cmtype:'page',cmnamespace:'0',cmsort:'timestamp',cmstart:'2001-01-01T00:00:00Z',cmend:rndTs};if(cm2)params2.cmcontinue=cm2;const d2=await mwApi(params2);if(d2.query?.categorymembers)a.push(...d2.query.categorymembers.filter(m=>!a.includes(m.title)).map(m=>m.title));cm2=d2.continue?.cmcontinue||"";if(cm2)await delay(300)}while(cm2&&a.length<limit)}}catch(e){console.warn("fetchCatMembers error:",e.message)}for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,limit)}
 
 async function fetchSubcategories(cat,maxDepth=1,onProgress=null){const prefix=c=>c.startsWith("Category:")?c:`Category:${c}`;const seen=new Set();const allCats=[prefix(cat)];seen.add(prefix(cat));
   async function crawl(cats,depth){if(depth>maxDepth)return;const nextLevel=[];for(const c of cats){if(onProgress)onProgress(`Crawling subcategories (depth ${depth}/${maxDepth}): ${c.replace("Category:","")}`);
-    let cm="";try{do{const params={action:'query',list:'categorymembers',cmtitle:c,cmlimit:'50',cmtype:'subcat'};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers){for(const m of d.query.categorymembers){if(!seen.has(m.title)){seen.add(m.title);allCats.push(m.title);nextLevel.push(m.title)}}}cm=d.continue?.cmcontinue||"";if(cm)await new Promise(r=>setTimeout(r,300))}while(cm)}catch(e){console.warn("fetchSubcategories error:",e.message)}}
+    let cm="";try{do{const params={action:'query',list:'categorymembers',cmtitle:c,cmlimit:'500',cmtype:'subcat'};if(cm)params.cmcontinue=cm;const d=await mwApi(params);if(d.query?.categorymembers){for(const m of d.query.categorymembers){if(!seen.has(m.title)){seen.add(m.title);allCats.push(m.title);nextLevel.push(m.title)}}}cm=d.continue?.cmcontinue||"";if(cm)await new Promise(r=>setTimeout(r,300))}while(cm)}catch(e){console.warn("fetchSubcategories error:",e.message)}}
     await new Promise(r=>setTimeout(r,200));
     if(nextLevel.length)await crawl(nextLevel,depth+1)}
   await crawl([prefix(cat)],1);return allCats}
@@ -400,7 +401,7 @@ function AutocompleteInput({placeholder,value,onChange,onGo,loading,onStop,searc
     debounceRef.current=setTimeout(async()=>{
       const results=await searchFn(value);
       setSuggestions(results);setShowDrop(results.length>0);setActiveIdx(-1);
-    },250);
+    },500);
     return()=>{if(debounceRef.current)clearTimeout(debounceRef.current)};
   },[value]);
 
@@ -485,10 +486,13 @@ function useScanEngine(){
   const scanArticles=useCallback(async(titles,{append=false}={})=>{
     setLoading(true);setError("");if(!append){setResults([]);affectedCount.current=0}setDone(false);if(!append)abort.current=false;
     let newHits=0;
-    try{for(let ti=0;ti<titles.length;ti++){if(abort.current)break;const title=titles[ti];setProgress(`Scanning ${append?"(extended) ":""}${ti+1} of ${titles.length}: ${title}`);
-      let wikitext;try{wikitext=await fetchWikitext(title)}catch(e){setResults(p=>[...p,{title,links:[],error:e.message}]);continue}
+    try{
+      setProgress(`Fetching wikitext for ${titles.length} articles…`);
+      const wikitexts=await fetchWikitextBatch(titles);
+      for(let ti=0;ti<titles.length;ti++){if(abort.current)break;const title=titles[ti];setProgress(`Scanning ${append?"(extended) ":""}${ti+1} of ${titles.length}: ${title}`);
+      const wikitext=wikitexts[title];if(!wikitext){setResults(p=>[...p,{title,links:[],error:"No content found"}]);continue}
       const matches=[...new Set((wikitext.match(AT_RE)||[]).map(u=>u.replace(/[\]|}<>]+$/,"")))];
-      const links=matches.map(url=>({archiveUrl:url,originalUrl:extractOriginalUrl(url, wikitext),waybackUrl:null,waybackDate:null,status:"pending"}));      
+      const links=matches.map(url=>({archiveUrl:url,originalUrl:extractOriginalUrl(url, wikitext),waybackUrl:null,waybackDate:null,status:"pending"}));
       if(links.length>0){newHits++;affectedCount.current++}
       const artResult={title,wikitext,links:[...links]};setResults(p=>[...p,artResult]);
       for(let li=0;li<links.length;li++){if(abort.current)break;const lk=links[li];
