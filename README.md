@@ -1,8 +1,10 @@
 # Archive.today Link Detector — Wikipedia Reference Audit Tool
 
-## 🔗 [**▶ Use the tool live →**](https://nethahussain.github.io/wikipedia-archive-today-detector/)
+## 🔗 [**▶ Use the tool live on Toolforge →**](https://fixarchive.toolforge.org/)
 
 > No login. No install. No API key. Works in any browser, instantly.
+>
+> **Note:** This tool has moved to [Wikimedia Toolforge](https://fixarchive.toolforge.org/). The old GitHub Pages URL redirects there automatically.
 
 ---
 
@@ -20,7 +22,7 @@ In February 2026, English Wikipedia [blacklisted archive.today](https://en.wikip
 - **One-click Fix on Wikipedia**: Opens the Wikipedia source editor with a pre-filled edit summary per [[WP:ATODAY]]
 - **Copy old/new URL buttons**: Streamlined Find & Replace workflow for editing article source
 - **Archive-date extraction**: Extracts the snapshot date from Wayback URLs for updating `|archive-date=` in citation templates
-- **503 auto-retry**: Retries Wayback Machine API requests up to 3 times with exponential backoff to handle Internet Archive's intermittent capacity issues
+- **Auto-retry**: Retries failed Wayback Machine API requests with exponential backoff
 - **15 predefined topic areas**: Medicine, Biology, Physics, Chemistry, Computer Science, History, Politics, Geography, Law, Economics, Engineering, Media, Environment, Education, Sports
 - **Custom categories**: Define your own category lists for targeted scans
 
@@ -44,7 +46,7 @@ In February 2026, English Wikipedia [blacklisted archive.today](https://en.wikip
 
 ## Usage
 
-1. Open the [**live tool**](https://nethahussain.github.io/wikipedia-archive-today-detector/) in any modern browser — no server or build step required
+1. Open the [**live tool**](https://fixarchive.toolforge.org/) in any modern browser — no server or build step required
 2. Choose a scan mode (Article / Category / Topic Browse)
 3. Enter a search term or select a topic
 4. Review results and click **Fix on Wikipedia** for affected articles
@@ -64,11 +66,7 @@ In February 2026, English Wikipedia [blacklisted archive.today](https://en.wikip
 
 - Category/topic scans: up to 500 articles per scan
 - Wayback API requests are rate-limited (~300ms between requests)
-- Auto-retries 503 errors up to 3 times with backoff
-
-## Note on Wayback Machine 503 Errors
-
-Wayback Machine links may occasionally show "503 Service Unavailable". This is an Internet Archive server-side issue — their servers handle billions of pages and sometimes hit capacity bottlenecks. The tool automatically retries failed requests, but if a Wayback link still shows 503 when you click it, simply refresh the page. The archived content is still there.
+- Auto-retries failed requests with backoff
 
 ## Tech Stack
 
