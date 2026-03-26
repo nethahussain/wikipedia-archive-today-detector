@@ -6,7 +6,8 @@ __pycache__/
 
 # Frontend
 node_modules/
-frontend/dist/
+# NOTE: frontend/dist/ is NOT ignored — it must be committed for Toolforge deployment
+# since Toolforge buildpacks don't run npm build.
 
 # Runtime data
 data/fixarchive.db
