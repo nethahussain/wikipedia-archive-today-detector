@@ -1,6 +1,1 @@
-fastapi>=0.115
-uvicorn[standard]>=0.34
-gunicorn>=21.0
-httpx>=0.28
-aiosqlite>=0.21
-sse-starlette>=2.2
+# No external dependencies needed - using Python stdlib only
