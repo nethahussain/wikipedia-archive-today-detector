@@ -66,7 +66,8 @@ const LANG="en";
 
 /* ── JSONP fetcher for MediaWiki API (bypasses CORS entirely) ── */
 let _jsonpId=0;
-function mwApi(params){return new Promise((resolve,reject)=>{const cbName='_mwcb'+(++_jsonpId);const qs=Object.entries(params).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');const url=`https://${LANG}.wikipedia.org/w/api.php?${qs}&format=json&callback=${cbName}`;const s=document.createElement('script');s.src=url;const timer=setTimeout(()=>{cleanup();reject(new Error('API timeout'))},15000);function cleanup(){delete window[cbName];s.remove();clearTimeout(timer)}window[cbName]=d=>{cleanup();resolve(d)};s.onerror=()=>{cleanup();reject(new Error('API request failed'))};document.head.appendChild(s)})}
+function _mwApiRaw(params){return new Promise((resolve,reject)=>{const cbName='_mwcb'+(++_jsonpId);const qs=Object.entries(params).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');const url=`https://${LANG}.wikipedia.org/w/api.php?${qs}&format=json&callback=${cbName}`;const s=document.createElement('script');s.src=url;const timer=setTimeout(()=>{cleanup();reject(new Error('API timeout'))},15000);function cleanup(){delete window[cbName];s.remove();clearTimeout(timer)}window[cbName]=d=>{cleanup();resolve(d)};s.onerror=()=>{cleanup();reject(new Error('API request failed'))};document.head.appendChild(s)})}
+async function mwApi(params,retries=3){for(let i=0;i<=retries;i++){try{return await _mwApiRaw(params)}catch(e){if(i<retries){await new Promise(r=>setTimeout(r,1000*(i+1)));continue}throw e}}}
 const C={bg:"#FAF9F5",bgAlt:"#F0EEE6",card:"#FFFFFF",cardBorder:"#E8E6DE",text:"#141413",textSec:"#3D3D3A",muted:"#73726C",mutedLight:"#A3A29C",accent:"#D97757",accentHover:"#C4684B",accentSoft:"rgba(217,119,87,0.08)",accentBorder:"rgba(217,119,87,0.2)",green:"#2E7D5B",greenSoft:"rgba(46,125,91,0.08)",greenBorder:"rgba(46,125,91,0.2)",red:"#C4533A",redSoft:"rgba(196,83,58,0.08)",redBorder:"rgba(196,83,58,0.2)",amber:"#A67A2E",amberSoft:"rgba(166,122,46,0.08)",amberBorder:"rgba(166,122,46,0.2)",blue:"#3B6BA5",blueSoft:"rgba(59,107,165,0.06)",blueBorder:"rgba(59,107,165,0.18)",btnDark:"#3D3D3A",btnDarkHover:"#2A2A28",mono:"'IBM Plex Mono',monospace",serif:"'Source Serif 4',Georgia,serif",sans:"'Inter',-apple-system,sans-serif",radius:"12px",radiusSm:"8px",shadow:"0 1px 3px rgba(0,0,0,0.04),0 1px 2px rgba(0,0,0,0.02)",shadowMd:"0 4px 12px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)"};
 
 function extractOriginalUrl(archiveUrl, wikitext) {
@@ -778,7 +779,7 @@ function CategoryTab(){
   const go=async()=>{if(!input.trim())return;engine.reset();setGatherMsg("");setCatError("");try{const seen=new Set();let totalAffected=0;let round=0;const MAX_ROUNDS=10;const cat=input.trim();
     let cats=[cat];
     if(subDepth>0){setGatherMsg("Crawling subcategories…");cats=await fetchSubcategories(cat,subDepth,msg=>setGatherMsg(msg));setGatherMsg(`Found ${cats.length} categories. Scanning articles…`)}
-    while(totalAffected<5&&round<MAX_ROUNDS){round++;const all=[];for(let i=0;i<cats.length&&all.length<500;i++){const t=await fetchCatMembers(cats[i],500-all.length);for(const x of t){if(!seen.has(x)&&all.length<500){seen.add(x);all.push(x)}}}
+    while(totalAffected<5&&round<MAX_ROUNDS){round++;const all=[];for(let i=0;i<cats.length&&all.length<500;i++){if(i>0)await new Promise(r=>setTimeout(r,500));const t=await fetchCatMembers(cats[i],500-all.length);for(const x of t){if(!seen.has(x)&&all.length<500){seen.add(x);all.push(x)}}}
     if(!all.length)break;setGatherMsg("");const r=await engine.scanArticles(all,{append:round>1});totalAffected=r.totalAffected}}catch(e){setCatError(e.message||"An error occurred")}finally{setGatherMsg("")}};
   return(
     <React.Fragment>
@@ -813,7 +814,7 @@ function TopicTab(){
       while(totalAffected<5&&round<MAX_ROUNDS){round++;
         // Each round picks a fresh random subset of categories
         const cats = pickRandomCats(allCats, Math.min(8, allCats.length));
-        const all=[];for(let i=0;i<cats.length&&all.length<500;i++){setGatherProgress(`${round>1?`Round ${round}: `:""}Category ${i+1}/${cats.length}: ${cats[i]} (${all.length} articles)`);const m=await fetchCatMembers(cats[i],500-all.length);for(const t of m){if(!seen.has(t)&&all.length<500){seen.add(t);all.push(t)}}}
+        const all=[];for(let i=0;i<cats.length&&all.length<500;i++){if(i>0)await new Promise(r=>setTimeout(r,500));setGatherProgress(`${round>1?`Round ${round}: `:""}Category ${i+1}/${cats.length}: ${cats[i]} (${all.length} articles)`);const m=await fetchCatMembers(cats[i],500-all.length);for(const t of m){if(!seen.has(t)&&all.length<500){seen.add(t);all.push(t)}}}
       if(!all.length)break;setGatherProgress("");setPhase("scanning");const r=await engine.scanArticles(all,{append:round>1});totalAffected=r.totalAffected;
       if(totalAffected<5&&round<MAX_ROUNDS){setPhase("gathering");setGatherProgress(`Found ${totalAffected} affected article${totalAffected!==1?"s":""} so far (need 5). Fetching more…`)}}
       setGatherProgress("");setPhase("scanning")}catch(e){setGatherProgress("");setPhase("pick")}};
